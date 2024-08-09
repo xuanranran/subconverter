@@ -56,7 +56,7 @@ jobs:
         run: |
           sudo rm -rf sub-web
           sudo rm -rf base/sub-web
-          git clone https://github.com/xuanranran/subweb.git sub-web
+          git clone https://github.com/xuanranran/sub-web.git
       - name: Check sub-web commit
         id: web
         run: |
