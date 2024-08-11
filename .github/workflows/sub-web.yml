@@ -35,6 +35,11 @@ jobs:
           sudo rm -rf sub-web
           sudo rm -rf base/sub-web
           git clone https://github.com/LM-Firefly/sub-web.git
+      - name: Update Rules
+        run: |
+          sudo rm -rf base/rules/LM-Firefly
+          git clone https://github.com/LM-Firefly/Rules.git
+          mv Rules base/rules/LM-Firefly
       - name: Check sub-web commit
         id: web
         run: |
