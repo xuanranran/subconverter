@@ -2843,6 +2843,8 @@ void proxyToSingBox(std::vector<Proxy> &nodes, rapidjson::Document &json, std::v
             tls.AddMember("enabled", true, allocator);
             if (!x.ServerName.empty())
                 tls.AddMember("server_name", rapidjson::StringRef(x.ServerName.c_str()), allocator);
+            else if (!x.Host.empty())
+                tls.AddMember("server_name", rapidjson::StringRef(x.Host.c_str()), allocator);
             if (!x.AlpnList.empty())
             {
                 auto alpns = vectorToJsonArray(x.AlpnList, allocator);
