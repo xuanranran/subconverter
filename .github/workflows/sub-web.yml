@@ -54,7 +54,7 @@ jobs:
         run: |
           sudo rm -rf sub-web
           sudo rm -rf base/sub-web
-          git clone https://github.com/LM-Firefly/sub-web.git
+          git clone https://github.com/xuanranran/subweb.git sub-web
       - name: Update Rules
         run: |
           sudo rm -rf base/rules/LM-Firefly
