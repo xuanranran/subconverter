@@ -4,15 +4,18 @@ on:
   push:
     branches:
       - main
-    paths:
-      - '**'
-      - '!.github/**'
-      - '!base/sub-web/**'
   workflow_dispatch:
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
   # 自动取消其他运行中的workflow
   cancel-in-progress: true
+
+env:
+  REPO_URL: https://github.com/xuanranran/subconverter
+  REPO_BRANCH: main
+  KMODS_IN_FIRMWARE: true
+  UPLOAD_RELEASE: true
+  TZ: Asia/Shanghai
 
 jobs:
   prepare:
