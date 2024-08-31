@@ -85,13 +85,13 @@ ipv6: true
 #interface-name: WLAN
 dns:
   enable: true
+  prefer-h3: true
   listen: 0.0.0.0:1053
   ipv6: true
 {% endif %}
   default-nameserver:
+    - 114.114.114.144
     - 223.5.5.5
-    - 119.29.29.29
-    - 1.1.1.1
   enhanced-mode: fake-ip # or redir-host (not recommended)
   fake-ip-range: 22.0.0.0/8
   fake-ip-filter:
@@ -199,6 +199,7 @@ dns:
       - 127.0.0.0/8
       - 240.0.0.0/4
       - 255.255.255.255/32
+  fake-ip-filter-mode: blacklist
   use-system-hosts: false
 sniffer:
   enable: true
