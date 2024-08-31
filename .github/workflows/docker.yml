@@ -1,9 +1,10 @@
 name: Publish Docker Image
 
 on:
-  push:
-    branches: [main]
-    paths:
+  # push:
+    # branches:
+      # - main
+    # paths:
       # - '**'
       # - '!.github/**'
       # - '!CHANGELOG.md'
