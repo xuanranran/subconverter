@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       ui-version: ${{ steps.web.outputs.ui-ver }}
+      rule-version: ${{ steps.rule.outputs.rule-ver }}
     env:
       GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
     steps:
@@ -36,10 +37,13 @@ jobs:
           sudo rm -rf base/sub-web
           git clone https://github.com/LM-Firefly/sub-web.git
       - name: Update Rules
+        id: rule
         run: |
           sudo rm -rf base/rules/LM-Firefly
           git clone https://github.com/LM-Firefly/Rules.git
           mv Rules base/rules/LM-Firefly
+          cd base/rules/LM-Firefly
+          echo "rule-ver=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       - name: Check sub-web commit
         id: web
         run: |
@@ -66,7 +70,7 @@ jobs:
         with:
           author_email: mail@example.com
           default_author: github_actions
-          message: 'Updated submodule sub-web to commit ${{ steps.web.outputs.ui-ver }} 🎉 '
+          message: 'Updated submodule sub-web to commit ${{ steps.web.outputs.ui-ver }} & Rules to commit ${{ steps.rule.outputs.rule-ver }} 🎉 '
           add: '-A'
         env:
           token: ${{env.GIT_TOKEN}}

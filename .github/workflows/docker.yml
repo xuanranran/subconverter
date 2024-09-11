@@ -67,7 +67,7 @@ jobs:
         run: echo "sha_short=$(date +%y.%m%d.%H%M-)$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       - name: Build and export
         id: build
-        uses: docker/build-push-action@v6.5.0
+        uses: docker/build-push-action@v6.7.0
         with:
           platforms: ${{ matrix.platform }}
           context: scripts/
@@ -82,7 +82,7 @@ jobs:
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
       - name: Upload artifact
-        uses: actions/upload-artifact@v4.3.6
+        uses: actions/upload-artifact@v4.4.0
         with:
           name: digest-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*
