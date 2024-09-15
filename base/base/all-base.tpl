@@ -1,5 +1,5 @@
 {% if request.target == "clash" or request.target == "clashr" %}
-mixed-port: {{ default(global.clash.mixed_port, "18888") }}
+mixed-port: {{ default(global.clash.mixed_port, "7893") }}
 #redir-port: {{ default(global.clash.redir_port, "18890") }}
 #authentication:
 #  - "firefly:WJ960923"
@@ -7,7 +7,7 @@ allow-lan: {{ default(global.clash.allow_lan, "true") }}
 bind-address: '*'
 mode: rule
 log-level: {{ default(global.clash.log_level, "info") }}
-external-controller: {{ default(global.clash.api_port, "0.0.0.0:19090")}}
+external-controller: {{ default(global.clash.api_port, "0.0.0.0:9090")}}
 #external-ui: folder
 secret: ''
 routing-mark: {{ default(global.clash.routing_mark, "16666")}}
@@ -83,6 +83,9 @@ dns:
 {% else %}
 ipv6: true
 #interface-name: WLAN
+hosts:
+  mtalk.google.com: 108.177.125.188
+  raw.githubusercontent.com: 151.101.76.133
 dns:
   enable: true
   prefer-h3: true
@@ -93,7 +96,7 @@ dns:
     - 114.114.114.144
     - 223.5.5.5
   enhanced-mode: fake-ip # or redir-host (not recommended)
-  fake-ip-range: 22.0.0.0/8
+  fake-ip-range: 198.18.0.1/16
   fake-ip-filter:
     # === LAN ===
     - '*.example'
@@ -149,6 +152,8 @@ dns:
     - 'Mijia Cloud'
     - '+.mijia.tech'
   fake-ip-filter-mode: blacklist
+  use-hosts: true
+  respect-rules: false
   nameserver:
     - 223.5.5.5
     - 119.29.29.29
@@ -200,7 +205,7 @@ dns:
       - 127.0.0.0/8
       - 240.0.0.0/4
       - 255.255.255.255/32
-  use-system-hosts: false
+#  use-system-hosts: false
 sniffer:
   enable: true
   force-dns-mapping: true
