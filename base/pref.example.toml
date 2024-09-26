@@ -145,8 +145,8 @@ clash_use_new_field_name = true
 #         key: value           - {name: name2, key: value}
 #       - name: name2
 #         key: value
-clash_proxies_style = "Flow"
-clash_proxy_groups_style = "Flow"
+clash_proxies_style = "block"
+clash_proxy_groups_style = "block"
 
 # add Clash mode to sing-box rules, and add a GLOBAL group to end of outbounds
 singbox_add_clash_modes = true
