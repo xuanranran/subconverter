@@ -133,6 +133,7 @@ void rulesetToClash(YAML::Node &base_rule, std::vector<RulesetContent> &ruleset_
 
     if (!overwrite_original_rules && base_rule[field_name].IsDefined())
         rules = base_rule[field_name];
+    const std::string rule_match_regex = "^(.*?,.*?)(,.*)(,.*)$";
 
     const std::string rule_match_regex = "^(.*?,.*?)(,.*)(,.*)$";
 
