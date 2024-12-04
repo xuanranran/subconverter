@@ -1,14 +1,14 @@
 name: Publish GitHub Releases
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - '**'
-      - '!.github/**'
-      - '!CHANGELOG.md'
-      - '!sub-web/**'
+  # push:
+    # branches:
+      # - main
+    # paths:
+      # - '**'
+      # - '!.github/**'
+      # - '!CHANGELOG.md'
+      # - '!sub-web/**'
   workflow_dispatch:
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -98,7 +98,7 @@ jobs:
                 "max_back_track_time_days": 180
             }
           ignorePreReleases: false
-          owner: LM-Firefly
+          owner: xuanranran
           repo: subconverter
           outputFile: CHANGELOG.md
           token: ${{ env.GIT_TOKEN }}
