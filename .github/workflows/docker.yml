@@ -22,13 +22,13 @@ jobs:
       matrix:
         include:
           - platform: linux/amd64
-            os: ubuntu-latest
+            os: ubuntu-24.04
           - platform: linux/386
-            os: ubuntu-latest
+            os: ubuntu-24.04
           - platform: linux/arm/v7
-            os: ubuntu-latest
+            os: ubuntu-24.04
           - platform: linux/arm64
-            os: ubuntu-latest
+            os: ubuntu-24.04
     runs-on: ${{ matrix.os }}
     outputs:
       ver: ${{ steps.set-ver.outputs.sha_short }}
@@ -93,7 +93,7 @@ jobs:
   merge:
     name: Merge
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Download digests
         uses: actions/download-artifact@v4.1.8
@@ -126,7 +126,7 @@ jobs:
           docker buildx imagetools inspect ${{ env.REGISTRY_IMAGE }}:${{ steps.meta.outputs.version }}
 
   docker_publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
     steps:
