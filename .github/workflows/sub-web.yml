@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   prepare:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     outputs:
       ui-version: ${{ steps.web.outputs.ui-ver }}
       rule-version: ${{ steps.rule.outputs.rule-ver }}
@@ -90,7 +90,7 @@ jobs:
 
   push-build:
     needs: prepare
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     env:
       GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
     steps:
@@ -129,7 +129,7 @@ jobs:
 
 #  build-changelog:
 #    needs: prepare
-#    runs-on: ubuntu-24.04
+#    runs-on: ubuntu-latest
 #    env:
 #      GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
 #      UI-VERSION: ${{ needs.prepare.outputs.ui-version }}
@@ -212,7 +212,7 @@ jobs:
 #          token: ${{env.GIT_TOKEN}}
 #  generate-changelog:
 #    needs: prepare
-#    runs-on: ubuntu-24.04
+#    runs-on: ubuntu-latest
 #    env:
 #      GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
 #    steps:
@@ -235,7 +235,7 @@ jobs:
 
 #  changelog-ci:
 #    needs: prepare
-#    runs-on: ubuntu-24.04
+#    runs-on: ubuntu-latest
 #    env:
 #      GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
 #      VER: ${{ needs.prepare.outputs.ver }}
