@@ -1,4 +1,11 @@
 ## *** 📜 CHANGELOG 📜 ***
 
-###  💫 Just have fun, nothing has changed. 
-### 📝 Check the Full Changelog for more information. 
+### ## 🚀 Features
+
+No Features, No Bug 🎉 🎉 🎉 
+
+
+
+## <details><summary>Uncategorized</summary>- - 🔨 add ??
+   - PR: #12
+</details>
