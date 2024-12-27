@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   prepare:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
     outputs:
@@ -119,19 +119,19 @@ jobs:
         include:
           - arch: x86
             artifact: subconverter_linux32
-            os: ubuntu-latest
+            os: ubuntu-24.04
           - arch: amd64
             artifact: subconverter_linux64
-            os: ubuntu-latest
+            os: ubuntu-24.04
           - arch: armv7
             artifact: subconverter_armv7
-            os: ubuntu-latest
+            os: ubuntu-24.04
           - arch: aarch64
             artifact: subconverter_aarch64
-            os: ubuntu-latest
+            os: ubuntu-24.04
           - arch: armhf
             artifact: subconverter_armhf
-            os: ubuntu-latest
+            os: ubuntu-24.04
     runs-on: ${{ matrix.os }}
     env:
       CHANGE: ${{ needs.prepare.outputs.changed }}
@@ -294,7 +294,7 @@ jobs:
   prerelease:
     name: Publish build
     needs: prepare
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       CHANGE: ${{ needs.prepare.outputs.changed }}
       GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
