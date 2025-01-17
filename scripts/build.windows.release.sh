@@ -1,7 +1,18 @@
 #!/bin/bash
 set -xe
 
-git clone https://github.com/curl/curl --depth=1 --branch curl-8_6_0
+# 获取系统架构
+ARCH=$(uname -m)
+
+if [ "$ARCH" == "x86_64" ]; then
+    TOOLCHAIN="mingw-w64-x86_64"
+else
+    TOOLCHAIN="mingw-w64-i686"
+fi
+
+pacman -S --needed --noconfirm base-devel ${TOOLCHAIN}-toolchain ${TOOLCHAIN}-cmake ${TOOLCHAIN}-nghttp2 ${TOOLCHAIN}-openssl ${TOOLCHAIN}-curl
+
+git clone https://github.com/curl/curl --depth=1 --branch curl-8_8_0
 cd curl
 cmake -DCMAKE_BUILD_TYPE=Release -DCURL_USE_LIBSSH2=OFF -DHTTP_ONLY=ON -DCURL_USE_SCHANNEL=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_CURL_EXE=OFF -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" -G "Unix Makefiles" -DHAVE_LIBIDN2=OFF -DCURL_USE_LIBPSL=OFF .
 make install -j4
@@ -44,9 +55,9 @@ cmake -DCMAKE_INSTALL_PREFIX="$MINGW_PREFIX" -G "Unix Makefiles" -DCMAKE_CXX_STA
 make install -j4
 cd ..
 
-python -m ensurepip
-python -m pip install gitpython
-python scripts/update_rules.py -c scripts/rules_config.conf
+# python -m ensurepip
+# python -m pip install gitpython
+# python scripts/update_rules.py -c scripts/rules_config.conf
 
 rm -f C:/Strawberry/perl/bin/pkg-config C:/Strawberry/perl/bin/pkg-config.bat
 cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" .
