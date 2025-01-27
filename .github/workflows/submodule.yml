@@ -63,7 +63,7 @@ jobs:
           cd sub-web
           echo "ui-ver=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       - name: Use Node.js 16
-        uses: actions/setup-node@v4.1.0
+        uses: actions/setup-node@v4.2.0
         with:
           node-version: 16
       - name: Get dependencies and build
