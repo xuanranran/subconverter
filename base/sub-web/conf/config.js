@@ -8,6 +8,10 @@ window.config = {
       text: '本地版 局域网修改localhost',
     },
     {
+      value: 'http://47.122.24.200:25500',
+      text: 'LovinYarn 中转后端',
+    },
+    {
       value: 'https://suc.miaoco.com',
       text: 'LovinYarn 后端',
     },
@@ -32,6 +36,10 @@ window.config = {
     {
       value: 'https://raw.githubusercontent.com/xuanranran/Clash/main/Clash/ClashRule_B.ini',
       text: 'LovinYarn Online Clash',
+    },
+    {
+      value: 'https://raw.githubusercontent.com/xuanranran/Clash/main/Clash/ClashRule_Stash.ini',
+      text: 'LovinYarn Online Stash',
     },
     {
       value: 'https://raw.githubusercontent.com/xuanranran/Clash/main/Clash/ClashRule.ini',
