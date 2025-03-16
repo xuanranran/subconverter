@@ -2,10 +2,10 @@
 
 在各种订阅格式之间进行转换的实用程序.
 
-[![Build Status](https://github.com/LM-Firefly/subconverter/actions/workflows/build.yml/badge.svg)](https://github.com/LM-Firefly/subconverter/actions)
-[![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/LM-Firefly/subconverter.svg)](https://github.com/LM-Firefly/subconverter/tags)
-[![GitHub release](https://img.shields.io/github/release/LM-Firefly/subconverter.svg)](https://github.com/LM-Firefly/subconverter/releases)
-[![GitHub license](https://img.shields.io/github/license/LM-Firefly/subconverter.svg)](https://github.com/LM-Firefly/subconverter/blob/master/LICENSE)
+[![Build Status](https://github.com/xuanranran/subconverter/actions/workflows/build.yml/badge.svg)](https://github.com/xuanranran/subconverter/actions)
+[![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/xuanranran/subconverter.svg)](https://github.com/xuanranran/subconverter/tags)
+[![GitHub release](https://img.shields.io/github/release/xuanranran/subconverter.svg)](https://github.com/xuanranran/subconverter/releases)
+[![GitHub license](https://img.shields.io/github/license/xuanranran/subconverter.svg)](https://github.com/xuanranran/subconverter/blob/main/LICENSE)
 
 ---
 
@@ -23,10 +23,10 @@
 
 - 新增 [特别用法](#特别用法) 中 [规则转换](#规则转换) 的说明
 - 修改 [配置文件](#配置文件) 中的 `clash_proxy_group` 为 `proxy_group` ，并增加修改描述与示例
-- 修改 [配置文件](#配置文件) 中 `[ruleset]` 部分的 `surge_ruleset` 为 `ruleset ` ，并增加修改示例
-- 修改 [外部配置](#外部配置) 中 `surge_ruleset` 为 `ruleset `
+- 修改 [配置文件](#配置文件) 中 `[ruleset]` 部分的 `surge_ruleset` 为 `ruleset` ，并增加修改示例
+- 修改 [外部配置](#外部配置) 中 `surge_ruleset` 为 `ruleset`
 - 新增 [外部配置](#外部配置) 中 `add_emoji` 和 `remove_old_emoji`
-- 修改 [外部配置](#外部配置) 中 `proxy_group` 和 `ruleset ` 的描述与示例
+- 修改 [外部配置](#外部配置) 中 `proxy_group` 和 `ruleset` 的描述与示例
 - 调整 [简易用法](#简易用法) 与 [进阶用法](#进阶用法) 中的部分描述
 - 更换文档中失效的外部链接
 
@@ -141,16 +141,16 @@
 
 注意：
 
-1.  Shadowrocket 用户可以使用 `ss`、`ssr` 、 `v2ray` 以及 `mixed` 参数
+1. Shadowrocket 用户可以使用 `ss`、`ssr` 、 `v2ray` 以及 `mixed` 参数
 
-2.  类 TG 代理的 HTTP/Socks 链接由于没有命名设定，所以可以在后方插入`&remarks=`进行命名，同时也可以插入 `&group=` 设置组别名称，以上两个参数需要经过 [URLEncode](https://www.urlencoder.org/) 处理，例如
+2. 类 TG 代理的 HTTP/Socks 链接由于没有命名设定，所以可以在后方插入`&remarks=`进行命名，同时也可以插入 `&group=` 设置组别名称，以上两个参数需要经过 [URLEncode](https://www.urlencoder.org/) 处理，例如
 
     - tg://http?server=1.2.3.4&port=233&user=user&pass=pass&remarks=Example&group=xxx
     - <https://t.me/http?server=1.2.3.4&port=233&user=user&pass=pass&remarks=Example&group=xxx>
 
-3.  目标类型为 `mixed` 时，会输出所有支持的节点的单链接组成的普通订阅（Base64 编码）
+3. 目标类型为 `mixed` 时，会输出所有支持的节点的单链接组成的普通订阅（Base64 编码）
 
-4.  目标类型为 `auto` 时，会根据请求的 `User-Agent` 自动判断输出的目标类型，匹配规则可参见 [此处](https://github.com/LM-Firefly/subconverter/blob/master/src/handler/interfaces.cpp#L121) （该链接有可能因为代码修改而不能准确指向相应的代码）
+4. 目标类型为 `auto` 时，会根据请求的 `User-Agent` 自动判断输出的目标类型，匹配规则可参见 [此处](https://github.com/xuanranran/subconverter/blob/main/src/handler/interfaces.cpp#L121) （该链接有可能因为代码修改而不能准确指向相应的代码）
 
 ---
 
@@ -286,12 +286,12 @@ http://127.0.0.1:25500/surge2clash?link=Surge的订阅链接
 
 在进行下一步操作前，十分推荐您阅读以下内容：
 
-1.  与 调用地址 相关的：[什么是 URL？](https://developer.mozilla.org/zh-CN/docs/Learn/Common_questions/What_is_a_URL)
-2.  与 配置文件 相关的：[INI 语法介绍](https://zh.wikipedia.org/wiki/INI%E6%96%87%E4%BB%B6) 、 [YAML 语法介绍](https://zh.wikipedia.org/wiki/YAML#%E8%AA%9E%E6%B3%95) 以及 [TOML 语法介绍](https://toml.io/cn/v1.0.0)
-3.  与 `Clash` 配置相关的：[YAML 语法介绍](https://zh.wikipedia.org/wiki/YAML#%E8%AA%9E%E6%B3%95) 以及 [官方文档](https://github.com/Dreamacro/clash/wiki/configuration)
-4.  与 `模板` 配置相关的：[INJA 语法介绍](https://github.com/pantor/inja)
-5.  会经常涉及到的： [正则表达式入门](https://github.com/ziishaned/learn-regex/blob/master/translations/README-cn.md)
-6.  当遇到问题需要提交 ISSUE 时的：[提问的智慧](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/master/README-zh_CN.md)
+1. 与 调用地址 相关的：[什么是 URL？](https://developer.mozilla.org/zh-CN/docs/Learn/Common_questions/What_is_a_URL)
+2. 与 配置文件 相关的：[INI 语法介绍](https://zh.wikipedia.org/wiki/INI%E6%96%87%E4%BB%B6) 、 [YAML 语法介绍](https://zh.wikipedia.org/wiki/YAML#%E8%AA%9E%E6%B3%95) 以及 [TOML 语法介绍](https://toml.io/cn/v1.0.0)
+3. 与 `Clash` 配置相关的：[YAML 语法介绍](https://zh.wikipedia.org/wiki/YAML#%E8%AA%9E%E6%B3%95) 以及 [官方文档](https://github.com/Dreamacro/clash/wiki/configuration)
+4. 与 `模板` 配置相关的：[INJA 语法介绍](https://github.com/pantor/inja)
+5. 会经常涉及到的： [正则表达式入门](https://github.com/ziishaned/learn-regex/blob/master/translations/README-cn.md)
+6. 当遇到问题需要提交 ISSUE 时的：[提问的智慧](https://github.com/ryanhanwu/How-To-Ask-Questions-The-Smart-Way/blob/master/README-zh_CN.md)
 
 当您尝试进行进阶操作时，即默认您有相关的操作能力，本程序仅保证在默认配置文件下能够正常运行。
 
@@ -382,7 +382,7 @@ http://127.0.0.1:25500/getprofile?name=%NAME%&token=%TOKEN%
 
 应当注意的是，此处文件内的参数**无需进行 URLEncode**，且此处的 `token` 与 `api_mode` 的状态无关。
 
-在程序目录内的任意位置创建一个新的文档文件（推荐保存至 `profiles` 文件夹内，以使整洁目录及便于后续维护），如 `formyairport.ini`，并仿照 [示例文档](https://github.com/LM-Firefly/subconverter/blob/master/base/profiles/example_profile.ini) 根据配置好的参数填写进去即可。
+在程序目录内的任意位置创建一个新的文档文件（推荐保存至 `profiles` 文件夹内，以使整洁目录及便于后续维护），如 `formyairport.ini`，并仿照 [示例文档](https://github.com/xuanranran/subconverter/blob/main/base/profiles/example_profile.ini) 根据配置好的参数填写进去即可。
 
 <details>
 <summary>举个例子：</summary>
@@ -408,7 +408,7 @@ exclude=(流量|官网)
 
 > 关于 subconverter 主程序目录中 `pref.ini` 文件的解释，其余格式的配置文件不再赘述，与之相仿。
 
-注：本部分内容以本程序中的 [`pref.example.ini`](https://github.com/LM-Firefly/subconverter/blob/master/base/pref.example.ini) 或 [`pref.example.yml`](https://github.com/LM-Firefly/subconverter/blob/master/base/pref.example.yml) 或 [`pref.example.toml`](https://github.com/LM-Firefly/subconverter/blob/master/base/pref.example.toml) 为准，本文档可能由于更新不及时，内容不适用于新版本。
+注：本部分内容以本程序中的 [`pref.example.ini`](https://github.com/xuanranran/subconverter/blob/main/base/pref.example.ini) 或 [`pref.example.yml`](https://github.com/xuanranran/subconverter/blob/main/base/pref.example.yml) 或 [`pref.example.toml`](https://github.com/xuanranran/subconverter/blob/main/base/pref.example.toml) 为准，本文档可能由于更新不及时，内容不适用于新版本。
 
 加载配置文件时会按照`pref.toml`、`pref.yml`、`pref.ini`的优先级顺序加载优先级高的配置文件
 
@@ -421,13 +421,13 @@ exclude=(流量|官网)
 >
 > 其他设置项目可以保持默认或者在知晓作用的前提下进行修改
 
-1.  **api_mode**
+1. **api_mode**
 
     > API 模式，设置为 true 以防止直接加载本地订阅或直接提供本地文件，若访问这些内容则需要接上 `&token=`。（多用于部署公共订阅转换服务时）
 
     - 当值为 `false` 时, 每次更新配置都会读取 主程序目录中的配置文件 , 为 `true` 时则仅启动时读取。
 
-2.  **api_access_token**
+2. **api_access_token**
 
 > 用于访问相对隐私的接口（如 `/getprofile`）
 
@@ -560,7 +560,7 @@ exclude=(流量|官网)
       ```ini
       clash_rule_base=base/GeneralClashConfig.yml # 加载本地文件作为模板
       # 或者
-      clash_rule_base=https://raw.githubusercontent.com/LM-Firefly/subconverter/master/base/base/Clash-General.yaml
+      clash_rule_base=https://raw.githubusercontent.com/xuanranran/subconverter/main/base/base/Clash-General.yaml
       ```
 
 14. **surge_rule_base**
@@ -632,7 +632,7 @@ exclude=(流量|官网)
 >
 > 相关设置项目建议保持默认或者在知晓作用的前提下进行修改
 
-1.  **stream_rule**
+1. **stream_rule**
 
     > 从节点名中提取流量信息及显示的规则
     >
@@ -648,7 +648,7 @@ exclude=(流量|官网)
       stream_rule=^.*?流量:(.*?) 剩:(?:.*)$|total=$1
       ```
 
-2.  **time_rule**
+2. **time_rule**
 
     > 从节点名中提取时间信息的规则
     >
@@ -671,7 +671,7 @@ exclude=(流量|官网)
 >
 > 相关设置项目建议保持默认或者在知晓作用的前提下进行修改
 
-1.  **udp_flag**
+1. **udp_flag**
 
 > 为节点打开 UDP 模式，设置为 true 时打开，默认为 false
 
@@ -699,7 +699,7 @@ exclude=(流量|官网)
 
 > 对生成的订阅中的节点按节点名进行 A-Z 的排序，设置为 true 时打开，默认为 false
 
-6.  **sort_script**
+6. **sort_script**
 
     > 对生成的订阅中的节点按自定义 js 函数进行排序
     >
@@ -717,7 +717,7 @@ exclude=(流量|官网)
       sort_script="path:/path/to/script.js"
       ```
 
-7.  **filter_deprecated_nodes**
+7. **filter_deprecated_nodes**
 
 > 排除当前 **`target=`** 不支持的节点类型，设置为 true 时打开，默认为 false
 
@@ -727,7 +727,7 @@ exclude=(流量|官网)
 
 > 在 header 里的加入流量信息 (Quanx, Surge 等读取后可以显示流量信息通知)，设置为 true 时打开，默认为 true
 
-9.  **clash_use_new_field_name**
+9. **clash_use_new_field_name**
 
     > 启用 Clash 的新区块名称 (proxies, proxy-groups, rules)，设置为 true 时打开，默认为 true
 
@@ -785,11 +785,11 @@ exclude=(流量|官网)
 
 > 该部分主要涉及到的内容为 **订阅文件的更新地址**
 
-1.  **write_managed_config**
+1. **write_managed_config**
 
 > 是否将 '#!MANAGED-CONFIG' 信息附加到 Surge 或 Surfboard 配置，设置为 true 时打开，默认为 true
 
-2.  **managed_config_prefix**
+2. **managed_config_prefix**
 
 > 具体的 '#!MANAGED-CONFIG' 信息，地址前缀不用添加 "/"。
 >
@@ -803,7 +803,7 @@ exclude=(流量|官网)
 managed_config_prefix = http://192.168.1.5:25500
 ```
 
-3.  **config_update_interval**
+3. **config_update_interval**
 
 > 托管配置更新间隔，确定配置将更新多长时间，单位为秒
 
@@ -814,11 +814,11 @@ config_update_interval = 86400
 # 每 86400 秒更新一次（即一天）
 ```
 
-4.  **config_update_strict**
+4. **config_update_strict**
 
     > 如果 config_update_strict 为 true，则 Surge 将在上述间隔后要求强制更新。
 
-5.  **quanx_device_id**
+5. **quanx_device_id**
 
     > 用于重写 Quantumult X 远程 JS 中的设备 ID，该 ID 在 Quantumult X 设置中自行查找
 
@@ -838,15 +838,15 @@ config_update_interval = 86400
 <details>
 <summary><b>[emojis] 部分</b></summary>
 
-1.  **add_emoji**
+1. **add_emoji**
 
     > 是否在节点名称前加入下面自定义的 Emoji，设置为 true 时打开，默认为 true
 
-2.  **remove_old_emoji**
+2. **remove_old_emoji**
 
     > 是否移除原有订阅中存在的 Emoji，设置为 true 时打开，默认为 true
 
-3.  **rule**
+3. **rule**
 
     > 在匹配到的节点前添加自定义 emojis，支持正则匹配
 
@@ -870,23 +870,23 @@ config_update_interval = 86400
 
 > 如果你对原本订阅自带的规则不满意时，可以使用如下配置
 
-1.  **enabled**
+1. **enabled**
 
 > 启用自定义规则集的**总开关**，设置为 true 时打开，默认为 true
 
-2.  **overwrite_original_rules**
+2. **overwrite_original_rules**
 
     > 覆盖原有规则，即 `[common]` 中 xxx_rule_base 中的内容，设置为 true 时打开，默认为 false
 
-3.  **update_ruleset_on_request**
+3. **update_ruleset_on_request**
 
 > 根据请求执行规则集更新，设置为 true 时打开，默认为 false
 
-4.  **ruleset**
+4. **ruleset**
 
     > 从本地或 url 获取规则片段
     >
-    > 格式为 `Group name,[type:]URL[,interval]` 或 `Group name,[]Rule `
+    > 格式为 `Group name,[type:]URL[,interval]` 或 `Group name,[]Rule`
     >
     > 支持的 type（类型）包括：surge, quanx, clash-domain, clash-ipcidr, clash-classic
     >
@@ -897,8 +897,8 @@ config_update_interval = 86400
     - 例如：
 
     ```ini
-    ruleset=🍎 苹果服务,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Apple.list
-    # 表示引用 https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/Apple.list 规则
+    ruleset=🍎 苹果服务,https://raw.githubusercontent.com/xuanranran/Rules/master/Apple.list
+    # 表示引用 https://raw.githubusercontent.com/xuanranran/Rules/master/Apple.list 规则
     # 且将此规则指向 [proxy_group] 所设置 🍎 苹果服务 策略组
     ruleset=Domestic Services,clash-domain:https://ruleset.dev/clash_domestic_services_domains,86400
     # 表示引用clash-domain类型的 https://ruleset.dev/clash_domestic_services_domains 规则
@@ -1017,7 +1017,7 @@ custom_proxy_group=节点选择`select`(^(?!.*(美国|日本)).*)
 
 > 该部分主要涉及到的内容为 **定时执行 js 文件中的代码**
 
-1.  **task**
+1. **task**
 
     > 在服务器运行期间定期执行的任务。
     >
@@ -1036,15 +1036,15 @@ custom_proxy_group=节点选择`select`(^(?!.*(美国|日本)).*)
 
 > 此部分通常**保持默认**即可
 
-1.  **listen**
+1. **listen**
 
 > 绑定到 Web 服务器的地址，将地址设为 0.0.0.0，则局域网内设备均可使用
 
-2.  **port**
+2. **port**
 
 > 绑定到 Web 服务器地址的端口，默认为 25500
 
-3.  **serve_file_root**
+3. **serve_file_root**
 
 > Web 服务器的根目录，可以为包含静态页面的文件夹，留空则为关闭
 
@@ -1055,11 +1055,11 @@ custom_proxy_group=节点选择`select`(^(?!.*(美国|日本)).*)
 
 > 此部分用于指定 模板 中的部分值
 
-1.  **template_path**
+1. **template_path**
 
     > 对**子模板**文件的所在位置(即模板文件中使用 `{% include "xxx.tpl" %}` 引入的模板)做出路径限制
 
-2.  **clash.dns 等**
+2. **clash.dns 等**
 
     > 名称可以为任意非本程序默认的参数，用来对模板中的值进行判断或在模板中使用其定义的参数
 
@@ -1071,39 +1071,39 @@ custom_proxy_group=节点选择`select`(^(?!.*(美国|日本)).*)
 
 > 此部分通常**保持默认**即可
 
-1.  **log_level**
+1. **log_level**
 
     > 日志级别，可选值有：fatal error warn info debug verbose
 
-2.  **print_debug_info**
+2. **print_debug_info**
 
     > 是否打印 debug 信息
 
-3.  **max_pending_connections**
+3. **max_pending_connections**
 
     > 最大挂起连接数
 
-4.  **max_concurrent_threads**
+4. **max_concurrent_threads**
 
     > 最大线程数
 
-5.  **max_allowed_rulesets**
+5. **max_allowed_rulesets**
 
     > 规则集数量上限，0 表示无限
 
-6.  **max_allowed_rules**
+6. **max_allowed_rules**
 
     > 规则数量上限，0 表示无限
 
-7.  **max_allowed_download_size**
+7. **max_allowed_download_size**
 
     > subconverter 下载外部文件时的文件大小上限，超过时直接忽略该文件，单位 bytes，0 表示无限
 
-8.  **enable_cache**
+8. **enable_cache**
 
     > 是否启用缓存
 
-9.  **cache_subscription**
+9. **cache_subscription**
 
     > 当启用缓存时，订阅文件的缓存时间
 
@@ -1133,7 +1133,7 @@ custom_proxy_group=节点选择`select`(^(?!.*(美国|日本)).*)
 
 > 本部分用于 链接参数 **`&config=`**
 
-注：本部分内容以本程序中的 [`/config/example_external_config.ini`](https://github.com/LM-Firefly/subconverter/blob/master/base/config/example_external_config.ini) 或 [`/config/example_external_config.yml`](https://github.com/LM-Firefly/subconverter/blob/master/base/config/example_external_config.yml) 或 [`/config/example_external_config.toml`](https://github.com/LM-Firefly/subconverter/blob/master/base/config/example_external_config.toml) 为准，本文档可能由于更新不及时，内容不适用于新版本。
+注：本部分内容以本程序中的 [`/config/example_external_config.ini`](https://github.com/xuanranran/subconverter/blob/main/base/config/example_external_config.ini) 或 [`/config/example_external_config.yml`](https://github.com/xuanranran/subconverter/blob/main/base/config/example_external_config.yml) 或 [`/config/example_external_config.toml`](https://github.com/xuanranran/subconverter/blob/main/base/config/example_external_config.toml) 为准，本文档可能由于更新不及时，内容不适用于新版本。
 
 将文件按照以下格式写好，上传至 Github Gist 或者 其他**可访问**网络位置
 经过 [URLEncode](https://www.urlencoder.org/) 处理后，添加至 `&config=` 即可调用
@@ -1185,13 +1185,13 @@ custom_proxy_group=SSID`ssid`default_group`celluar=group0,ssid1=group1,ssid2=gro
 ;type defaults to surge if omitted
 enable_rule_generator=false
 overwrite_original_rules=false
-;ruleset=DIRECT,https://raw.githubusercontent.com/LM-Firefly/Rules/master/Special/Local-LAN.list,86400
+;ruleset=DIRECT,https://raw.githubusercontent.com/xuanranran/Rules/master/Special/Local-LAN.list,86400
 ;ruleset=🎯 全球直连,rules/LocalAreaNetwork.list
 ;ruleset=DIRECT,surge:rules/LocalAreaNetwork.list
-;ruleset=Advertising,surge:https://raw.githubusercontent.com/LM-Firefly/Rules/master/Adblock/Adblock.list,86400
+;ruleset=Advertising,surge:https://raw.githubusercontent.com/xuanranran/Rules/master/Adblock/Adblock.list,86400
 ;ruleset=Domestic Services,clash-domain:https://ruleset.dev/clash_domestic_services_domains,86400
 ;ruleset=Domestic Services,clash-ipcidr:https://ruleset.dev/clash_domestic_services_ips,86400
-;ruleset=DIRECT,clash-classic:https://raw.githubusercontent.com/LM-Firefly/Rules/master/Clash-RuleSet-Classical/Domestic.yaml,86400
+;ruleset=DIRECT,clash-classic:https://raw.githubusercontent.com/xuanranran/Rules/master/Clash-RuleSet-Classical/Domestic.yaml,86400
 ;ruleset=🎯 全球直连,[]GEOIP,CN
 ;ruleset=🐟 漏网之鱼,[]FINAL
 
@@ -1240,14 +1240,14 @@ clash_rule_base=base/forcerule.yml
 >
 > 更多的使用方式可以参照 [INJA 语法](https://github.com/pantor/inja)
 
-1.  取值
+1. 取值
 
     ```inja
     {{ global.clash.http_port }}
     # 获取 配置文件 中 clash.http_port 的值
     ```
 
-2.  单判断
+2. 单判断
 
     ```inja
     {% if request.clash.dns == "1" %}
@@ -1256,7 +1256,7 @@ clash_rule_base=base/forcerule.yml
     # 如果 URL 中的 clash.dns=1 时，判断成立
     ```
 
-3.  或判断
+3. 或判断
 
     ```inja
     {% if request.target == "clash" or request.target == "clashr" %}
@@ -1265,7 +1265,7 @@ clash_rule_base=base/forcerule.yml
     # 如果 URL 中的 target 为 clash 或者 clashr 时，判断成立
     ```
 
-4.  如果...否则...
+4. 如果...否则...
 
     ```inja
     {% if local.clash.new_field_name == "true" %}
@@ -1280,7 +1280,7 @@ clash_rule_base=base/forcerule.yml
     # 如果 外部配置中 clash.new_field_name=true 时，启用 新的 Clash 块名称，否则使用旧的名称
     ```
 
-5.  如果存在...则...(可避免请求中无对应参数时发生的报错)
+5. 如果存在...则...(可避免请求中无对应参数时发生的报错)
 
     ```inja
     {% if exists("request.clash.dns") %}
@@ -1291,7 +1291,7 @@ clash_rule_base=base/forcerule.yml
     # 如果 URL 中存在对 clash.dns 参数的任意指定时，判断成立 (可以和 如果···否则··· 等判断一起使用)
     ```
 
-6.  单判断，且如果参数不存在时使用默认值进行判断(可避免请求中无对应参数时发生的报错)
+6. 单判断，且如果参数不存在时使用默认值进行判断(可避免请求中无对应参数时发生的报错)
 
     ```inja
     dns:
@@ -1311,14 +1311,14 @@ clash_rule_base=base/forcerule.yml
 
 模板内的引用有以下几类：
 
-1.  从 配置文件 中获取，判断前缀为 `global`
+1. 从 配置文件 中获取，判断前缀为 `global`
 
     ```inja
     socks-port: {{ global.clash.socks_port }}
     # 当配置文件中设定了 `clash.socks_port` 值时，将被引用
     ```
 
-2.  从 外部配置 中获取，判断前缀为 `local`
+2. 从 外部配置 中获取，判断前缀为 `local`
 
     ```inja
     {% if local.clash.new_field_name =="true" %}
@@ -1327,7 +1327,7 @@ clash_rule_base=base/forcerule.yml
     # 当外部配置中设定了 `clash.new_field_name=true` 时，该判断生效，其包含的···内容被引用
     ```
 
-3.  从 URL 链接中获取，判断前缀为 `request`，例如 `http://127.0.0.1:25500/sub?target=clash&url=www.xxx.com&clash.dns=1`
+3. 从 URL 链接中获取，判断前缀为 `request`，例如 `http://127.0.0.1:25500/sub?target=clash&url=www.xxx.com&clash.dns=1`
 
     - 从 URL 中所获得**包含**在 [进阶链接](#进阶链接) 内的参数进行判断
 
@@ -1365,7 +1365,7 @@ http://127.0.0.1:25500/render?path=xxx&额外的调试或控制参数
 
 > 启动程序后，在本地生成对应的配置文件文本
 
-在程序目录内的 [generate.ini](https://github.com/LM-Firefly/subconverter/blob/master/base/generate.ini) 中设定文件块(`[xxx]`)，生成的文件名(path=xxx)以及其所需要包含的参数，例如：
+在程序目录内的 [generate.ini](https://github.com/xuanranran/subconverter/blob/main/base/generate.ini) 中设定文件块(`[xxx]`)，生成的文件名(path=xxx)以及其所需要包含的参数，例如：
 
 ```ini
 [test]
@@ -1387,7 +1387,7 @@ profile=profiles/example_profile.ini
 
 > 自动上传 gist ，可以用于 Clash For Android / Surge 等进行远程订阅
 
-在程序目录内的 [gistconf.ini](https://github.com/LM-Firefly/subconverter/blob/master/base/gistconf.ini) 中添加 `Personal Access Token`（[在此创建](https://github.com/settings/tokens/new?scopes=gist&description=Subconverter)）例如：
+在程序目录内的 [gistconf.ini](https://github.com/xuanranran/subconverter/blob/main/base/gistconf.ini) 中添加 `Personal Access Token`（[在此创建](https://github.com/settings/tokens/new?scopes=gist&description=Subconverter)）例如：
 
 ```ini
 [common]

@@ -1,4 +1,4 @@
-FROM alpine:3.18
+FROM alpine:latest
 # FROM xuanranran/subconverter:latest
 LABEL maintainer="juanshengyuan@gmail.com"
 # ADD https://github.com/xuanranran/subconverter/commits/main.atom cache_bust
@@ -33,7 +33,7 @@ RUN set -xe && \
     install -d /usr/include/date/ && \
     install -m644 libcron/externals/date/include/date/* /usr/include/date/ && \
     cd .. && \
-    git clone https://github.com/ToruNiina/toml11 --branch="v3.8.1" --depth=1 && \
+    git clone https://github.com/ToruNiina/toml11 --branch="v4.3.0" --depth=1 && \
     cd toml11 && \
     cmake -DCMAKE_CXX_STANDARD=11 . && \
     make install -j $THREADS && \
@@ -42,9 +42,9 @@ RUN set -xe && \
     cd subconverter && \
 #    [ -n "$SHA" ] && sed -i 's/\(v[0-9]\.[0-9]\.[0-9]\)/\1-'"$SHA"'/' src/version.h;\
     time=$(date +%y.%m%d.%H%M-) && sha=$(git rev-parse --short HEAD) && sed -i 's/\(v[0-9]\.[0-9]\.[0-9]\)/\1-'"$time$sha"'/' src/version.h && \
-    python3 -m ensurepip && \
-    python3 -m pip install gitpython && \
-    python3 scripts/update_rules.py -c scripts/rules_config.conf && \
+#    python3 -m ensurepip && \
+#    python3 -m pip install gitpython && \
+#    python3 scripts/update_rules.py -c scripts/rules_config.conf && \
     cmake -DCMAKE_BUILD_TYPE=Release . && \
     make -j $THREADS && \
     mv subconverter /usr/bin && \

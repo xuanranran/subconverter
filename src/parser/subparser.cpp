@@ -23,9 +23,9 @@ string_array ssr_ciphers = {"none", "table", "rc4", "rc4-md5", "aes-128-cfb", "a
 std::map<std::string, std::string> parsedMD5;
 std::string modSSMD5 = "f7653207090ce3389115e9c88541afe0";
 
-// remake from speedtestutil
+//remake from speedtestutil
 
-void commonConstruct(Proxy &node, ProxyType type, const std::string &group, const std::string &remarks, const std::string &server, const std::string &port, const tribool &udp, const tribool &tfo, const tribool &scv, const tribool &tls13, const std::string &underlying_proxy)
+void commonConstruct(Proxy &node, ProxyType type, const std::string &group, const std::string &remarks, const std::string &server, const std::string &port, const tribool &udp, const tribool &tfo, const tribool &scv, const tribool &tls13,  const std::string& underlying_proxy)
 {
     node.Type = type;
     node.Group = group;
@@ -49,7 +49,7 @@ void vmessConstruct(Proxy &node, const std::string &group, const std::string &re
     node.Edge = edge;
     node.ServerName = sni;
 
-    if (net == "quic")
+    if(net == "quic")
     {
         node.QUICSecure = host;
         node.QUICSecret = path;
@@ -63,7 +63,7 @@ void vmessConstruct(Proxy &node, const std::string &group, const std::string &re
     node.TLSSecure = tls == "tls";
 }
 
-void ssrConstruct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &server, const std::string &port, const std::string &protocol, const std::string &method, const std::string &obfs, const std::string &password, const std::string &obfsparam, const std::string &protoparam, tribool udp, tribool tfo, tribool scv, const std::string &underlying_proxy)
+void ssrConstruct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &server, const std::string &port, const std::string &protocol, const std::string &method, const std::string &obfs, const std::string &password, const std::string &obfsparam, const std::string &protoparam, tribool udp, tribool tfo, tribool scv,const std::string& underlying_proxy)
 {
     commonConstruct(node, ProxyType::ShadowsocksR, group, remarks, server, port, udp, tfo, scv, tribool(), underlying_proxy);
     node.Password = password;
@@ -74,7 +74,7 @@ void ssrConstruct(Proxy &node, const std::string &group, const std::string &rema
     node.OBFSParam = obfsparam;
 }
 
-void ssConstruct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &server, const std::string &port, const std::string &password, const std::string &method, const std::string &plugin, const std::string &pluginopts, tribool udp, tribool tfo, tribool scv, tribool tls13, const std::string &underlying_proxy)
+void ssConstruct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &server, const std::string &port, const std::string &password, const std::string &method, const std::string &plugin, const std::string &pluginopts, tribool udp, tribool tfo, tribool scv, tribool tls13, const std::string& underlying_proxy)
 {
     commonConstruct(node, ProxyType::Shadowsocks, group, remarks, server, port, udp, tfo, scv, tls13, underlying_proxy);
     node.Password = password;
@@ -83,14 +83,14 @@ void ssConstruct(Proxy &node, const std::string &group, const std::string &remar
     node.PluginOption = pluginopts;
 }
 
-void socksConstruct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &server, const std::string &port, const std::string &username, const std::string &password, tribool udp, tribool tfo, tribool scv, const std::string &underlying_proxy)
+void socksConstruct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &server, const std::string &port, const std::string &username, const std::string &password, tribool udp, tribool tfo, tribool scv, const std::string& underlying_proxy)
 {
     commonConstruct(node, ProxyType::SOCKS5, group, remarks, server, port, udp, tfo, scv, tribool(), underlying_proxy);
     node.Username = username;
     node.Password = password;
 }
 
-void httpConstruct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &server, const std::string &port, const std::string &username, const std::string &password, bool tls, tribool tfo, tribool scv, tribool tls13, const std::string &underlying_proxy)
+void httpConstruct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &server, const std::string &port, const std::string &username, const std::string &password, bool tls, tribool tfo, tribool scv, tribool tls13,const std::string& underlying_proxy)
 {
     commonConstruct(node, tls ? ProxyType::HTTPS : ProxyType::HTTP, group, remarks, server, port, tribool(), tfo, scv, tls13, underlying_proxy);
     node.Username = username;
@@ -111,7 +111,7 @@ void trojanConstruct(Proxy &node, const std::string &group, const std::string &r
     node.AlpnList = alpnList;
 }
 
-void snellConstruct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &server, const std::string &port, const std::string &password, const std::string &obfs, const std::string &host, uint16_t version, tribool udp, tribool tfo, tribool scv, const std::string &underlying_proxy)
+void snellConstruct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &server, const std::string &port, const std::string &password, const std::string &obfs, const std::string &host, uint16_t version, tribool udp, tribool tfo, tribool scv, const std::string& underlying_proxy)
 {
     commonConstruct(node, ProxyType::Snell, group, remarks, server, port, udp, tfo, scv, tribool(), underlying_proxy);
     node.Password = password;
@@ -120,7 +120,7 @@ void snellConstruct(Proxy &node, const std::string &group, const std::string &re
     node.SnellVersion = version;
 }
 
-void wireguardConstruct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &server, const std::string &port, const std::string &selfIp, const std::string &selfIpv6, const std::string &privKey, const std::string &pubKey, const std::string &psk, const string_array &dns, const std::string &mtu, const std::string &keepalive, const std::string &testUrl, const std::string &clientId, const tribool &udp, const std::string &underlying_proxy)
+void wireguardConstruct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &server, const std::string &port, const std::string &selfIp, const std::string &selfIpv6, const std::string &privKey, const std::string &pubKey, const std::string &psk, const string_array &dns, const std::string &mtu, const std::string &keepalive, const std::string &testUrl, const std::string &clientId, const tribool &udp, const std::string& underlying_proxy)
 {
     commonConstruct(node, ProxyType::WireGuard, group, remarks, server, port, udp, tribool(), tribool(), tribool(), underlying_proxy);
     node.SelfIP = selfIp;
@@ -135,44 +135,7 @@ void wireguardConstruct(Proxy &node, const std::string &group, const std::string
     node.ClientId = clientId;
 }
 
-void vlessConstruct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &add, const std::string &port, const std::string &type, const std::string &id, const std::string &aid, const std::string &net, const std::string &cipher, const std::string &flow, const std::string &mode, const std::string &path, const std::string &host, const std::string &edge, const std::string &tls, const std::string &pbk, const std::string &sid, const std::string &fp, const std::string &sni, const std::vector<std::string> &alpnList, const std::string &packet_encoding, tribool udp, tribool tfo, tribool scv, tribool tls13, const std::string &underlying_proxy)
-{
-    commonConstruct(node, ProxyType::VLESS, group, remarks, add, port, udp, tfo, scv, tls13, underlying_proxy);
-    node.UserId = id.empty() ? "00000000-0000-0000-0000-000000000000" : id;
-    node.AlterId = to_int(aid);
-    node.EncryptMethod = cipher;
-    node.TransferProtocol = net.empty() ? "tcp" : type == "http" ? "http"
-                                                                 : net;
-    node.Edge = edge;
-    node.Flow = flow;
-    node.FakeType = type;
-    node.TLSSecure = tls == "tls" || tls == "xtls" || tls == "reality";
-    node.PublicKey = pbk;
-    node.ShortId = sid;
-    node.Fingerprint = fp;
-    node.ServerName = sni;
-    node.AlpnList = alpnList;
-    node.PacketEncoding = packet_encoding;
-    switch (hash_(net))
-    {
-    case "grpc"_hash:
-        node.Host = host;
-        node.GRPCMode = mode.empty() ? "gun" : mode;
-        node.GRPCServiceName = path.empty() ? "/" : urlEncode(urlDecode(trim(path)));
-        break;
-    case "quic"_hash:
-        node.QUICSecure = host;
-        node.QUICSecret = path.empty() ? "/" : trim(path);
-        break;
-    default:
-        node.Host = (host.empty() && !isIPv4(add) && !isIPv6(add)) ? add.data() : trim(host);
-        node.Path = path.empty() ? "/" : urlDecode(trim(path));
-        break;
-    }
-}
-
-void hysteriaConstruct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &server, const std::string &port, const std::string &ports, const std::string &protocol, const std::string &obfs_protocol, const std::string &up, const std::string &up_speed, const std::string &down, const std::string &down_speed, const std::string &auth, const std::string &auth_str, const std::string &obfs, const std::string &sni, const std::string &fingerprint, const std::string &ca, const std::string &ca_str, const std::string &recv_window_conn, const std::string &recv_window, const std::string &disable_mtu_discovery, const std::string &hop_interval, const std::string &alpn, tribool tfo, tribool scv, const std::string &underlying_proxy)
-{
+void hysteriaConstruct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &server, const std::string &port, const std::string &ports, const std::string &protocol, const std::string &obfs_protocol, const std::string &up, const std::string &up_speed, const std::string &down, const std::string &down_speed, const std::string &auth, const std::string &auth_str, const std::string &obfs, const std::string &sni, const std::string &fingerprint, const std::string &ca, const std::string &ca_str, const std::string &recv_window_conn, const std::string &recv_window, const std::string &disable_mtu_discovery, const std::string &hop_interval, const std::string &alpn, tribool tfo, tribool scv, const std::string &underlying_proxy) {
     commonConstruct(node, ProxyType::Hysteria, group, remarks, server, port, tribool(), tfo, scv, tribool(), underlying_proxy);
     node.Ports = ports;
     node.Protocol = protocol;
@@ -219,8 +182,7 @@ void hysteriaConstruct(Proxy &node, const std::string &group, const std::string 
     }
 }
 
-void hysteria2Construct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &server, const std::string &port, const std::string &ports, const std::string &up, const std::string &down, const std::string &password, const std::string &obfs, const std::string &obfs_password, const std::string &sni, const std::string &fingerprint, const std::string &alpn, const std::string &ca, const std::string &ca_str, const std::string &cwnd, tribool tfo, tribool scv, const std::string &underlying_proxy)
-{
+void hysteria2Construct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &server, const std::string &port, const std::string &ports, const std::string &up, const std::string &down, const std::string &password, const std::string &obfs, const std::string &obfs_password, const std::string &sni, const std::string &fingerprint, const std::string &alpn, const std::string &ca, const std::string &ca_str, const std::string &cwnd, tribool tfo, tribool scv, const std::string &underlying_proxy) {
     commonConstruct(node, ProxyType::Hysteria2, group, remarks, server, port, tribool(), tfo, scv, tribool(), underlying_proxy);
     node.Ports = ports;
     node.UpSpeed = to_int(up);
@@ -235,6 +197,42 @@ void hysteria2Construct(Proxy &node, const std::string &group, const std::string
     node.Ca = ca;
     node.CaStr = ca_str;
     node.CWND = to_int(cwnd);
+}
+
+void vlessConstruct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &add, const std::string &port, const std::string &type, const std::string &id, const std::string &aid, const std::string &net, const std::string &cipher, const std::string &flow, const std::string &mode, const std::string &path, const std::string &host, const std::string &edge, const std::string &tls, const std::string &pbk, const std::string &sid, const std::string &fp, const std::string &sni, const std::vector<std::string> &alpnList, const std::string &packet_encoding, tribool udp, tribool tfo, tribool scv, tribool tls13, const std::string &underlying_proxy)
+{
+    commonConstruct(node, ProxyType::VLESS, group, remarks, add, port, udp, tfo, scv, tls13, underlying_proxy);
+    node.UserId = id.empty() ? "00000000-0000-0000-0000-000000000000" : id;
+    node.AlterId = to_int(aid);
+    node.EncryptMethod = cipher;
+    node.TransferProtocol = net.empty() ? "tcp" : type == "http" ? "http"
+                                                                 : net;
+    node.Edge = edge;
+    node.Flow = flow;
+    node.FakeType = type;
+    node.TLSSecure = tls == "tls" || tls == "xtls" || tls == "reality";
+    node.PublicKey = pbk;
+    node.ShortId = sid;
+    node.Fingerprint = fp;
+    node.ServerName = sni;
+    node.AlpnList = alpnList;
+    node.PacketEncoding = packet_encoding;
+    switch(hash_(net))
+    {
+    case "grpc"_hash:
+        node.Host = host;
+        node.GRPCMode = mode.empty() ? "gun" : mode;
+        node.GRPCServiceName = path.empty() ? "/" : urlEncode(urlDecode(trim(path)));
+        break;
+    case "quic"_hash:
+        node.QUICSecure = host;
+        node.QUICSecret = path.empty() ? "/" : trim(path);
+        break;
+    default:
+        node.Host = (host.empty() && !isIPv4(add) && !isIPv6(add)) ? add.data() : trim(host);
+        node.Path = path.empty() ? "/" : urlDecode(trim(path));
+        break;
+    }
 }
 
 void TUICConstruct(Proxy &node, const std::string &group, const std::string &remarks, const std::string &add, const std::string &port, const std::string &uuid, const std::string &password, const std::string &ip, const std::string &heartbeatinterval, const std::string &disablesni, const std::string &reducertt, const std::string &requesttimeout, const std::string &udprelaymode, const std::string &congestioncontroller, const std::string &maxudprelaypacketsize, const std::string &fastopen, const std::string &maxopenstreams, const std::string &sni, const std::string &alpn, tribool udp, tribool tfo, tribool scv, const std::string &underlying_proxy)
@@ -262,38 +260,38 @@ void explodeVmess(std::string vmess, Proxy &node)
     Document jsondata;
     std::vector<std::string> vArray;
 
-    if (regMatch(vmess, "vmess://([A-Za-z0-9-_]+)\\?(.*)")) // shadowrocket style link
+    if(regMatch(vmess, "vmess://([A-Za-z0-9-_]+)\\?(.*)")) //shadowrocket style link
     {
         explodeShadowrocket(vmess, node);
         return;
     }
-    else if (regMatch(vmess, "vmess://(.*?)@(.*)"))
+    else if(regMatch(vmess, "vmess://(.*?)@(.*)"))
     {
         explodeStdVMess(vmess, node);
         return;
     }
-    else if (regMatch(vmess, "vmess1://(.*?)\\?(.*)")) // kitsunebi style link
+    else if(regMatch(vmess, "vmess1://(.*?)\\?(.*)")) //kitsunebi style link
     {
         explodeKitsunebi(vmess, node);
         return;
     }
     vmess = urlSafeBase64Decode(regReplace(vmess, "(vmess|vmess1)://", ""));
-    if (regMatch(vmess, "(.*?) = (.*)"))
+    if(regMatch(vmess, "(.*?) = (.*)"))
     {
         explodeQuan(vmess, node);
         return;
     }
     jsondata.Parse(vmess.data());
-    if (jsondata.HasParseError() || !jsondata.IsObject())
+    if(jsondata.HasParseError() || !jsondata.IsObject())
         return;
 
-    version = "1";                     // link without version will treat as version 1
-    GetMember(jsondata, "v", version); // try to get version
+    version = "1"; //link without version will treat as version 1
+    GetMember(jsondata, "v", version); //try to get version
 
     GetMember(jsondata, "ps", ps);
     GetMember(jsondata, "add", add);
     port = GetMember(jsondata, "port");
-    if (port == "0")
+    if(port == "0")
         return;
     GetMember(jsondata, "type", type);
     GetMember(jsondata, "id", id);
@@ -303,13 +301,13 @@ void explodeVmess(std::string vmess, Proxy &node)
 
     GetMember(jsondata, "host", host);
     GetMember(jsondata, "sni", sni);
-    switch (to_int(version))
+    switch(to_int(version))
     {
     case 1:
-        if (!host.empty())
+        if(!host.empty())
         {
             vArray = split(host, ";");
-            if (vArray.size() == 2)
+            if(vArray.size() == 2)
             {
                 host = vArray[0];
                 path = vArray[1];
@@ -342,57 +340,57 @@ void explodeVmessConf(std::string content, std::vector<Proxy> &nodes)
     regGetMatch(content, "((?1)wssettings)", 2, 0, &wsset);
 
     json.Parse(content.data());
-    if (json.HasParseError() || !json.IsObject())
+    if(json.HasParseError() || !json.IsObject())
         return;
     try
     {
-        if (json.HasMember("outbounds")) // single config
+        if(json.HasMember("outbounds")) //single config
         {
-            if (json["outbounds"].Size() > 0 && json["outbounds"][0].HasMember("settings") && json["outbounds"][0]["settings"].HasMember("vnext") && json["outbounds"][0]["settings"]["vnext"].Size() > 0)
+            if(json["outbounds"].Size() > 0 && json["outbounds"][0].HasMember("settings") && json["outbounds"][0]["settings"].HasMember("vnext") && json["outbounds"][0]["settings"]["vnext"].Size() > 0)
             {
                 Proxy node;
                 nodejson = json["outbounds"][0];
                 add = GetMember(nodejson["settings"]["vnext"][0], "address");
                 port = GetMember(nodejson["settings"]["vnext"][0], "port");
-                if (port == "0")
+                if(port == "0")
                     return;
-                if (nodejson["settings"]["vnext"][0]["users"].Size())
+                if(nodejson["settings"]["vnext"][0]["users"].Size())
                 {
                     id = GetMember(nodejson["settings"]["vnext"][0]["users"][0], "id");
                     aid = GetMember(nodejson["settings"]["vnext"][0]["users"][0], "alterId");
                     cipher = GetMember(nodejson["settings"]["vnext"][0]["users"][0], "security");
                 }
-                if (nodejson.HasMember(streamset.data()))
+                if(nodejson.HasMember(streamset.data()))
                 {
                     net = GetMember(nodejson[streamset.data()], "network");
                     tls = GetMember(nodejson[streamset.data()], "security");
-                    if (net == "ws")
+                    if(net == "ws")
                     {
-                        if (nodejson[streamset.data()].HasMember(wsset.data()))
+                        if(nodejson[streamset.data()].HasMember(wsset.data()))
                             settings = nodejson[streamset.data()][wsset.data()];
                         else
                             settings.RemoveAllMembers();
                         path = GetMember(settings, "path");
-                        if (settings.HasMember("headers"))
+                        if(settings.HasMember("headers"))
                         {
                             host = GetMember(settings["headers"], "Host");
                             edge = GetMember(settings["headers"], "Edge");
                         }
                     }
-                    if (nodejson[streamset.data()].HasMember(tcpset.data()))
+                    if(nodejson[streamset.data()].HasMember(tcpset.data()))
                         settings = nodejson[streamset.data()][tcpset.data()];
                     else
                         settings.RemoveAllMembers();
-                    if (settings.IsObject() && settings.HasMember("header"))
+                    if(settings.IsObject() && settings.HasMember("header"))
                     {
                         type = GetMember(settings["header"], "type");
-                        if (type == "http")
+                        if(type == "http")
                         {
-                            if (settings["header"].HasMember("request"))
+                            if(settings["header"].HasMember("request"))
                             {
-                                if (settings["header"]["request"].HasMember("path") && settings["header"]["request"]["path"].Size())
+                                if(settings["header"]["request"].HasMember("path") && settings["header"]["request"]["path"].Size())
                                     settings["header"]["request"]["path"][0] >> path;
-                                if (settings["header"]["request"].HasMember("headers"))
+                                if(settings["header"]["request"].HasMember("headers"))
                                 {
                                     host = GetMember(settings["header"]["request"]["headers"], "Host");
                                     edge = GetMember(settings["header"]["request"]["headers"], "Edge");
@@ -407,45 +405,45 @@ void explodeVmessConf(std::string content, std::vector<Proxy> &nodes)
             return;
         }
     }
-    catch (std::exception &e)
+    catch(std::exception & e)
     {
-        // writeLog(0, "VMessConf parser throws an error. Leaving...", LOG_LEVEL_WARNING);
-        // return;
-        // ignore
+        //writeLog(0, "VMessConf parser throws an error. Leaving...", LOG_LEVEL_WARNING);
+        //return;
+        //ignore
         throw;
     }
-    // read all subscribe remark as group name
-    for (uint32_t i = 0; i < json["subItem"].Size(); i++)
+    //read all subscribe remark as group name
+    for(uint32_t i = 0; i < json["subItem"].Size(); i++)
         subdata.insert(std::pair<std::string, std::string>(json["subItem"][i]["id"].GetString(), json["subItem"][i]["remarks"].GetString()));
 
-    for (uint32_t i = 0; i < json["vmess"].Size(); i++)
+    for(uint32_t i = 0; i < json["vmess"].Size(); i++)
     {
         Proxy node;
-        if (json["vmess"][i]["address"].IsNull() || json["vmess"][i]["port"].IsNull() || json["vmess"][i]["id"].IsNull())
+        if(json["vmess"][i]["address"].IsNull() || json["vmess"][i]["port"].IsNull() || json["vmess"][i]["id"].IsNull())
             continue;
 
-        // common info
+        //common info
         json["vmess"][i]["remarks"] >> ps;
         json["vmess"][i]["address"] >> add;
         port = GetMember(json["vmess"][i], "port");
-        if (port == "0")
+        if(port == "0")
             continue;
         json["vmess"][i]["subid"] >> subid;
 
-        if (!subid.empty())
+        if(!subid.empty())
         {
             iter = subdata.find(subid);
-            if (iter != subdata.end())
+            if(iter != subdata.end())
                 group = iter->second;
         }
-        if (ps.empty())
+        if(ps.empty())
             ps = add + ":" + port;
 
         scv = GetMember(json["vmess"][i], "allowInsecure");
         json["vmess"][i]["configType"] >> configType;
-        switch (configType)
+        switch(configType)
         {
-        case 1: // vmess config
+        case 1: //vmess config
             json["vmess"][i]["headerType"] >> type;
             json["vmess"][i]["id"] >> id;
             json["vmess"][i]["alterId"] >> aid;
@@ -457,12 +455,12 @@ void explodeVmessConf(std::string content, std::vector<Proxy> &nodes)
             json["vmess"][i]["sni"] >> sni;
             vmessConstruct(node, V2RAY_DEFAULT_GROUP, ps, add, port, type, id, aid, net, cipher, path, host, "", tls, sni, std::vector<std::string>{}, udp, tfo, scv);
             break;
-        case 3: // ss config
+        case 3: //ss config
             json["vmess"][i]["id"] >> id;
             json["vmess"][i]["security"] >> cipher;
             ssConstruct(node, SS_DEFAULT_GROUP, ps, add, port, id, cipher, "", "", udp, tfo, scv);
             break;
-        case 4: // socks config
+        case 4: //socks config
             socksConstruct(node, SOCKS_DEFAULT_GROUP, ps, add, port, "", "", udp, tfo, scv);
             break;
         default:
@@ -477,16 +475,16 @@ void explodeVmessConf(std::string content, std::vector<Proxy> &nodes)
 void explodeSS(std::string ss, Proxy &node)
 {
     std::string ps, password, method, server, port, plugins, plugin, pluginopts, addition, group = SS_DEFAULT_GROUP, secret;
-    // std::vector<std::string> args, secret;
+    //std::vector<std::string> args, secret;
     ss = replaceAllDistinct(ss.substr(5), "/?", "?");
-    if (strFind(ss, "#"))
+    if(strFind(ss, "#"))
     {
         auto sspos = ss.find('#');
         ps = urlDecode(ss.substr(sspos + 1));
         ss.erase(sspos);
     }
 
-    if (strFind(ss, "?"))
+    if(strFind(ss, "?"))
     {
         addition = ss.substr(ss.find('?') + 1);
         plugins = urlDecode(getUrlArg(addition, "plugin"));
@@ -494,25 +492,25 @@ void explodeSS(std::string ss, Proxy &node)
         plugin = plugins.substr(0, pluginpos);
         pluginopts = plugins.substr(pluginpos + 1);
         group = getUrlArg(addition, "group");
-        if (!group.empty())
+        if(!group.empty())
             group = urlSafeBase64Decode(group);
         ss.erase(ss.find('?'));
     }
-    if (strFind(ss, "@"))
+    if(strFind(ss, "@"))
     {
-        if (regGetMatch(ss, "(\\S+?)@(\\S+):(\\d+)", 4, 0, &secret, &server, &port))
+        if(regGetMatch(ss, "(\\S+?)@(\\S+):(\\d+)", 4, 0, &secret, &server, &port))
             return;
-        if (regGetMatch(urlSafeBase64Decode(secret), "(\\S+?):(\\S+)", 3, 0, &method, &password))
+        if(regGetMatch(urlSafeBase64Decode(secret), "(\\S+?):(\\S+)", 3, 0, &method, &password))
             return;
     }
     else
     {
-        if (regGetMatch(urlSafeBase64Decode(ss), "(\\S+?):(\\S+)@(\\S+):(\\d+)", 5, 0, &method, &password, &server, &port))
+        if(regGetMatch(urlSafeBase64Decode(ss), "(\\S+?):(\\S+)@(\\S+):(\\d+)", 5, 0, &method, &password, &server, &port))
             return;
     }
-    if (port == "0")
+    if(port == "0")
         return;
-    if (ps.empty())
+    if(ps.empty())
         ps = server + ":" + port;
 
     ssConstruct(node, group, ps, server, port, password, method, plugin, pluginopts);
@@ -528,23 +526,23 @@ void explodeSSD(std::string link, std::vector<Proxy> &nodes)
 
     link = urlSafeBase64Decode(link.substr(6));
     jsondata.Parse(link.c_str());
-    if (jsondata.HasParseError() || !jsondata.IsObject())
+    if(jsondata.HasParseError() || !jsondata.IsObject())
         return;
-    if (!jsondata.HasMember("servers"))
+    if(!jsondata.HasMember("servers"))
         return;
     GetMember(jsondata, "airport", group);
 
-    if (jsondata["servers"].IsArray())
+    if(jsondata["servers"].IsArray())
     {
         listType = 0;
         listCount = jsondata["servers"].Size();
     }
-    else if (jsondata["servers"].IsObject())
+    else if(jsondata["servers"].IsObject())
     {
         listType = 1;
         listCount = jsondata["servers"].MemberCount();
         uint32_t node_index = 0;
-        for (rapidjson::Value::MemberIterator iter = jsondata["servers"].MemberBegin(); iter != jsondata["servers"].MemberEnd(); iter++)
+        for(rapidjson::Value::MemberIterator iter = jsondata["servers"].MemberBegin(); iter != jsondata["servers"].MemberEnd(); iter++)
         {
             node_map.emplace(node_index, iter->name.GetString());
             node_index++;
@@ -554,17 +552,17 @@ void explodeSSD(std::string link, std::vector<Proxy> &nodes)
         return;
 
     rapidjson::Value singlenode;
-    for (uint32_t i = 0; i < listCount; i++)
+    for(uint32_t i = 0; i < listCount; i++)
     {
-        // get default info
+        //get default info
         port = GetMember(jsondata, "port");
         method = GetMember(jsondata, "encryption");
         password = GetMember(jsondata, "password");
         plugin = GetMember(jsondata, "plugin");
         pluginopts = GetMember(jsondata, "plugin_options");
 
-        // get server-specific info
-        switch (listType)
+        //get server-specific info
+        switch(listType)
         {
         case 0:
             singlenode = jsondata["servers"][i];
@@ -583,7 +581,7 @@ void explodeSSD(std::string link, std::vector<Proxy> &nodes)
         GetMember(singlenode, "plugin", plugin);
         GetMember(singlenode, "plugin_options", pluginopts);
 
-        if (port == "0")
+        if(port == "0")
             continue;
 
         Proxy node;
@@ -601,23 +599,23 @@ void explodeSSAndroid(std::string ss, std::vector<Proxy> &nodes)
 
     Document json;
     auto index = nodes.size();
-    // first add some extra data before parsing
+    //first add some extra data before parsing
     ss = "{\"nodes\":" + ss + "}";
     json.Parse(ss.data());
-    if (json.HasParseError() || !json.IsObject())
+    if(json.HasParseError() || !json.IsObject())
         return;
 
-    for (uint32_t i = 0; i < json["nodes"].Size(); i++)
+    for(uint32_t i = 0; i < json["nodes"].Size(); i++)
     {
         Proxy node;
         server = GetMember(json["nodes"][i], "server");
-        if (server.empty())
+        if(server.empty())
             continue;
         ps = GetMember(json["nodes"][i], "remarks");
         port = GetMember(json["nodes"][i], "server_port");
-        if (port == "0")
+        if(port == "0")
             continue;
-        if (ps.empty())
+        if(ps.empty())
             ps = server + ":" + port;
         password = GetMember(json["nodes"][i], "password");
         method = GetMember(json["nodes"][i], "method");
@@ -638,21 +636,21 @@ void explodeSSConf(std::string content, std::vector<Proxy> &nodes)
     auto index = nodes.size();
 
     json.Parse(content.data());
-    if (json.HasParseError() || !json.IsObject())
+    if(json.HasParseError() || !json.IsObject())
         return;
     const char *section = json.HasMember("version") && json.HasMember("servers") ? "servers" : "configs";
-    if (!json.HasMember(section))
+    if(!json.HasMember(section))
         return;
     GetMember(json, "remarks", group);
 
-    for (uint32_t i = 0; i < json[section].Size(); i++)
+    for(uint32_t i = 0; i < json[section].Size(); i++)
     {
         Proxy node;
         ps = GetMember(json[section][i], "remarks");
         port = GetMember(json[section][i], "server_port");
-        if (port == "0")
+        if(port == "0")
             continue;
-        if (ps.empty())
+        if(ps.empty())
             ps = server + ":" + port;
 
         password = GetMember(json[section][i], "password");
@@ -674,7 +672,7 @@ void explodeSSR(std::string ssr, Proxy &node)
     std::string remarks, group, server, port, method, password, protocol, protoparam, obfs, obfsparam;
     ssr = replaceAllDistinct(ssr.substr(6), "\r", "");
     ssr = urlSafeBase64Decode(ssr);
-    if (strFind(ssr, "/?"))
+    if(strFind(ssr, "/?"))
     {
         strobfs = ssr.substr(ssr.find("/?") + 2);
         ssr = ssr.substr(0, ssr.find("/?"));
@@ -684,18 +682,18 @@ void explodeSSR(std::string ssr, Proxy &node)
         protoparam = regReplace(urlSafeBase64Decode(getUrlArg(strobfs, "protoparam")), "\\s", "");
     }
 
-    if (regGetMatch(ssr, "(\\S+):(\\d+?):(\\S+?):(\\S+?):(\\S+?):(\\S+)", 7, 0, &server, &port, &protocol, &method, &obfs, &password))
+    if(regGetMatch(ssr, "(\\S+):(\\d+?):(\\S+?):(\\S+?):(\\S+?):(\\S+)", 7, 0, &server, &port, &protocol, &method, &obfs, &password))
         return;
     password = urlSafeBase64Decode(password);
-    if (port == "0")
+    if(port == "0")
         return;
 
-    if (group.empty())
+    if(group.empty())
         group = SSR_DEFAULT_GROUP;
-    if (remarks.empty())
+    if(remarks.empty())
         remarks = server + ":" + port;
 
-    if (find(ss_ciphers.begin(), ss_ciphers.end(), method) != ss_ciphers.end() && (obfs.empty() || obfs == "plain") && (protocol.empty() || protocol == "origin"))
+    if(find(ss_ciphers.begin(), ss_ciphers.end(), method) != ss_ciphers.end() && (obfs.empty() || obfs == "plain") && (protocol.empty() || protocol == "origin"))
     {
         ssConstruct(node, group, remarks, server, port, password, method, "", "");
     }
@@ -712,10 +710,10 @@ void explodeSSRConf(std::string content, std::vector<Proxy> &nodes)
     auto index = nodes.size();
 
     json.Parse(content.data());
-    if (json.HasParseError() || !json.IsObject())
+    if(json.HasParseError() || !json.IsObject())
         return;
 
-    if (json.HasMember("local_port") && json.HasMember("local_address")) // single libev config
+    if(json.HasMember("local_port") && json.HasMember("local_address")) //single libev config
     {
         Proxy node;
         server = GetMember(json, "server");
@@ -724,7 +722,7 @@ void explodeSSRConf(std::string content, std::vector<Proxy> &nodes)
         method = GetMember(json, "method");
         obfs = GetMember(json, "obfs");
         protocol = GetMember(json, "protocol");
-        if (find(ss_ciphers.begin(), ss_ciphers.end(), method) != ss_ciphers.end() && (obfs.empty() || obfs == "plain") && (protocol.empty() || protocol == "origin"))
+        if(find(ss_ciphers.begin(), ss_ciphers.end(), method) != ss_ciphers.end() && (obfs.empty() || obfs == "plain") && (protocol.empty() || protocol == "origin"))
         {
             plugin = GetMember(json, "plugin");
             pluginopts = GetMember(json, "plugin_opts");
@@ -740,18 +738,18 @@ void explodeSSRConf(std::string content, std::vector<Proxy> &nodes)
         return;
     }
 
-    for (uint32_t i = 0; i < json["configs"].Size(); i++)
+    for(uint32_t i = 0; i < json["configs"].Size(); i++)
     {
         Proxy node;
         group = GetMember(json["configs"][i], "group");
-        if (group.empty())
+        if(group.empty())
             group = SSR_DEFAULT_GROUP;
         remarks = GetMember(json["configs"][i], "remarks");
         server = GetMember(json["configs"][i], "server");
         port = GetMember(json["configs"][i], "server_port");
-        if (port == "0")
+        if(port == "0")
             continue;
-        if (remarks.empty())
+        if(remarks.empty())
             remarks = server + ":" + port;
 
         password = GetMember(json["configs"][i], "password");
@@ -772,34 +770,34 @@ void explodeSSRConf(std::string content, std::vector<Proxy> &nodes)
 void explodeSocks(std::string link, Proxy &node)
 {
     std::string group, remarks, server, port, username, password;
-    if (strFind(link, "socks://")) // v2rayn socks link
+    if(strFind(link, "socks://")) //v2rayn socks link
     {
-        if (strFind(link, "#"))
+        if(strFind(link, "#"))
         {
             auto pos = link.find('#');
             remarks = urlDecode(link.substr(pos + 1));
             link.erase(pos);
         }
         link = urlSafeBase64Decode(link.substr(8));
-        if (strFind(link, "@"))
+        if(strFind(link, "@"))
         {
             auto userinfo = split(link, '@');
-            if (userinfo.size() < 2)
+            if(userinfo.size() < 2)
                 return;
             link = userinfo[1];
             userinfo = split(userinfo[0], ':');
-            if (userinfo.size() < 2)
+            if(userinfo.size() < 2)
                 return;
             username = userinfo[0];
             password = userinfo[1];
         }
         auto arguments = split(link, ':');
-        if (arguments.size() < 2)
+        if(arguments.size() < 2)
             return;
         server = arguments[0];
         port = arguments[1];
     }
-    else if (strFind(link, "https://t.me/socks") || strFind(link, "tg://socks")) // telegram style socks link
+    else if(strFind(link, "https://t.me/socks") || strFind(link, "tg://socks")) //telegram style socks link
     {
         server = getUrlArg(link, "server");
         port = getUrlArg(link, "port");
@@ -808,11 +806,11 @@ void explodeSocks(std::string link, Proxy &node)
         remarks = urlDecode(getUrlArg(link, "remarks"));
         group = urlDecode(getUrlArg(link, "group"));
     }
-    if (group.empty())
+    if(group.empty())
         group = SOCKS_DEFAULT_GROUP;
-    if (remarks.empty())
+    if(remarks.empty())
         remarks = server + ":" + port;
-    if (port == "0")
+    if(port == "0")
         return;
 
     socksConstruct(node, group, remarks, server, port, username, password);
@@ -828,11 +826,11 @@ void explodeHTTP(const std::string &link, Proxy &node)
     remarks = urlDecode(getUrlArg(link, "remarks"));
     group = urlDecode(getUrlArg(link, "group"));
 
-    if (group.empty())
+    if(group.empty())
         group = HTTP_DEFAULT_GROUP;
-    if (remarks.empty())
+    if(remarks.empty())
         remarks = server + ":" + port;
-    if (port == "0")
+    if(port == "0")
         return;
 
     httpConstruct(node, group, remarks, server, port, username, password, strFind(link, "/https"));
@@ -844,7 +842,7 @@ void explodeHTTPSub(std::string link, Proxy &node)
     std::string addition;
     bool tls = strFind(link, "https://");
     auto pos = link.find('?');
-    if (pos != std::string::npos)
+    if(pos != std::string::npos)
     {
         addition = link.substr(pos + 1);
         link.erase(pos);
@@ -853,22 +851,22 @@ void explodeHTTPSub(std::string link, Proxy &node)
     }
     link.erase(0, link.find("://") + 3);
     link = urlSafeBase64Decode(link);
-    if (strFind(link, "@"))
+    if(strFind(link, "@"))
     {
-        if (regGetMatch(link, "(.*?):(.*?)@(.*):(.*)", 5, 0, &username, &password, &server, &port))
+        if(regGetMatch(link, "(.*?):(.*?)@(.*):(.*)", 5, 0, &username, &password, &server, &port))
             return;
     }
     else
     {
-        if (regGetMatch(link, "(.*):(.*)", 3, 0, &server, &port))
+        if(regGetMatch(link, "(.*):(.*)", 3, 0, &server, &port))
             return;
     }
 
-    if (group.empty())
+    if(group.empty())
         group = HTTP_DEFAULT_GROUP;
-    if (remarks.empty())
+    if(remarks.empty())
         remarks = server + ":" + port;
-    if (port == "0")
+    if(port == "0")
         return;
 
     httpConstruct(node, group, remarks, server, port, username, password, tls);
@@ -883,50 +881,51 @@ void explodeTrojan(std::string trojan, Proxy &node)
     if (startsWith(trojan, "trojan-go://"))
         trojan.erase(0, 12);
     string_size pos = trojan.rfind('#');
-    if (pos != std::string::npos)
+
+    if(pos != std::string::npos)
     {
         remark = urlDecode(trojan.substr(pos + 1));
         trojan.erase(pos);
     }
     pos = trojan.find('?');
-    if (pos != std::string::npos)
+    if(pos != std::string::npos)
     {
         addition = trojan.substr(pos + 1);
         trojan.erase(pos);
     }
 
-    if (regGetMatch(trojan, "(.*?)@(.*):(.*)", 4, 0, &psk, &server, &port))
+    if(regGetMatch(trojan, "(.*?)@(.*):(.*)", 4, 0, &psk, &server, &port))
         return;
-    if (port == "0")
+    if(port == "0")
         return;
 
     host = getUrlArg(addition, "sni");
     sni = getUrlArg(addition, "sni");
-    if (host.empty())
+    if(host.empty())
         host = getUrlArg(addition, "peer");
     tfo = getUrlArg(addition, "tfo");
     fp = getUrlArg(addition, "fp");
     scv = getUrlArg(addition, "allowInsecure");
     group = urlDecode(getUrlArg(addition, "group"));
 
-    if (getUrlArg(addition, "ws") == "1")
+    if(getUrlArg(addition, "ws") == "1")
     {
         path = getUrlArg(addition, "wspath");
         network = "ws";
     }
     // support the trojan link format used by v2ryaN and X-ui.
     // format: trojan://{password}@{server}:{port}?type=ws&security=tls&path={path (urlencoded)}&sni={host}#{name}
-    else if (getUrlArg(addition, "type") == "ws")
+    else if(getUrlArg(addition, "type") == "ws")
     {
         path = getUrlArg(addition, "path");
-        if (path.substr(0, 3) == "%2F")
+        if(path.substr(0, 3) == "%2F")
             path = urlDecode(path);
         network = "ws";
     }
 
-    if (remark.empty())
+    if(remark.empty())
         remark = server + ":" + port;
-    if (group.empty())
+    if(group.empty())
         group = TROJAN_DEFAULT_GROUP;
     std::string alpn = getUrlArg(addition, "alpn");
     std::vector<std::string> alpnList;
@@ -955,19 +954,6 @@ void explodeHysteria(std::string hysteria, Proxy &node)
     }
 }
 
-void explodeHysteria2(std::string hysteria2, Proxy &node)
-{
-    hysteria2 = regReplace(hysteria2, "(hysteria2|hy2)://", "hysteria2://");
-
-    // replace /? with ?
-    hysteria2 = regReplace(hysteria2, "/\\?", "?", true, false);
-    if (regMatch(hysteria2, "hysteria2://(.*?)[:](.*)"))
-    {
-        explodeStdHysteria2(hysteria2, node);
-        return;
-    }
-}
-
 void explodeTUIC(std::string TUIC, Proxy &node)
 {
     TUIC = regReplace(TUIC, "/\\?", "?", true, false);
@@ -986,27 +972,27 @@ void explodeQuan(const std::string &quan, Proxy &node)
     strTemp = regReplace(quan, "(.*?) = (.*)", "$1,$2");
     configs = split(strTemp, ",");
 
-    if (configs[1] == "vmess")
+    if(configs[1] == "vmess")
     {
-        if (configs.size() < 6)
+        if(configs.size() < 6)
             return;
         ps = trim(configs[0]);
         add = trim(configs[2]);
         port = trim(configs[3]);
-        if (port == "0")
+        if(port == "0")
             return;
         cipher = trim(configs[4]);
         id = trim(replaceAllDistinct(configs[5], "\"", ""));
 
-        // read link
-        for (uint32_t i = 6; i < configs.size(); i++)
+        //read link
+        for(uint32_t i = 6; i < configs.size(); i++)
         {
             vArray = split(configs[i], "=");
-            if (vArray.size() < 2)
+            if(vArray.size() < 2)
                 continue;
             itemName = trim(vArray[0]);
             itemVal = trim(vArray[1]);
-            switch (hash_(itemName))
+            switch(hash_(itemName))
             {
             case "group"_hash:
                 group = itemVal;
@@ -1022,23 +1008,23 @@ void explodeQuan(const std::string &quan, Proxy &node)
                 break;
             case "obfs-header"_hash:
                 headers = split(replaceAllDistinct(replaceAllDistinct(itemVal, "\"", ""), "[Rr][Nn]", "|"), "|");
-                for (std::string &x : headers)
+                for(std::string &x : headers)
                 {
-                    if (regFind(x, "(?i)Host: "))
+                    if(regFind(x, "(?i)Host: "))
                         host = x.substr(6);
-                    else if (regFind(x, "(?i)Edge: "))
+                    else if(regFind(x, "(?i)Edge: "))
                         edge = x.substr(6);
                 }
                 break;
             case "obfs"_hash:
-                if (itemVal == "ws")
+                if(itemVal == "ws")
                     net = "ws";
                 break;
             default:
                 continue;
             }
         }
-        if (path.empty())
+        if(path.empty())
             path = "/";
 
         vmessConstruct(node, group, ps, add, port, type, id, aid, net, cipher, path, host, edge, tls, "", std::vector<std::string>{});
@@ -1054,7 +1040,7 @@ void explodeNetch(std::string netch, Proxy &node)
     netch = urlSafeBase64Decode(netch.substr(8));
 
     json.Parse(netch.data());
-    if (json.HasParseError() || !json.IsObject())
+    if(json.HasParseError() || !json.IsObject())
         return;
     type = GetMember(json, "Type");
     group = GetMember(json, "Group");
@@ -1064,29 +1050,29 @@ void explodeNetch(std::string netch, Proxy &node)
     tfo = GetMember(json, "EnableTFO");
     scv = GetMember(json, "AllowInsecure");
     port = GetMember(json, "Port");
-    if (port == "0")
+    if(port == "0")
         return;
     method = GetMember(json, "EncryptMethod");
     password = GetMember(json, "Password");
-    if (remark.empty())
+    if(remark.empty())
         remark = address + ":" + port;
-    switch (hash_(type))
+    switch(hash_(type))
     {
     case "SS"_hash:
         plugin = GetMember(json, "Plugin");
         pluginopts = GetMember(json, "PluginOption");
-        if (group.empty())
+        if(group.empty())
             group = SS_DEFAULT_GROUP;
         ssConstruct(node, group, remark, address, port, password, method, plugin, pluginopts, udp, tfo, scv);
         break;
     case "SSR"_hash:
         protocol = GetMember(json, "Protocol");
         obfs = GetMember(json, "OBFS");
-        if (find(ss_ciphers.begin(), ss_ciphers.end(), method) != ss_ciphers.end() && (obfs.empty() || obfs == "plain") && (protocol.empty() || protocol == "origin"))
+        if(find(ss_ciphers.begin(), ss_ciphers.end(), method) != ss_ciphers.end() && (obfs.empty() || obfs == "plain") && (protocol.empty() || protocol == "origin"))
         {
             plugin = GetMember(json, "Plugin");
             pluginopts = GetMember(json, "PluginOption");
-            if (group.empty())
+            if(group.empty())
                 group = SS_DEFAULT_GROUP;
             ssConstruct(node, group, remark, address, port, password, method, plugin, pluginopts, udp, tfo, scv);
         }
@@ -1094,7 +1080,7 @@ void explodeNetch(std::string netch, Proxy &node)
         {
             protoparam = GetMember(json, "ProtocolParam");
             obfsparam = GetMember(json, "OBFSParam");
-            if (group.empty())
+            if(group.empty())
                 group = SSR_DEFAULT_GROUP;
             ssrConstruct(node, group, remark, address, port, protocol, method, obfs, password, obfsparam, protoparam, udp, tfo, scv);
         }
@@ -1109,19 +1095,19 @@ void explodeNetch(std::string netch, Proxy &node)
         edge = GetMember(json, "Edge");
         tls = GetMember(json, "TLSSecure");
         sni = GetMember(json, "ServerName");
-        if (group.empty())
+        if(group.empty())
             group = V2RAY_DEFAULT_GROUP;
         vmessConstruct(node, group, remark, address, port, faketype, id, aid, transprot, method, path, host, edge, tls, sni, std::vector<std::string>{}, udp, tfo, scv);
         break;
     case "Socks5"_hash:
         username = GetMember(json, "Username");
-        if (group.empty())
+        if(group.empty())
             group = SOCKS_DEFAULT_GROUP;
         socksConstruct(node, group, remark, address, port, username, password, udp, tfo, scv);
         break;
     case "HTTP"_hash:
     case "HTTPS"_hash:
-        if (group.empty())
+        if(group.empty())
             group = HTTP_DEFAULT_GROUP;
         httpConstruct(node, group, remark, address, port, username, password, type == "HTTPS", tfo, scv);
         break;
@@ -1131,7 +1117,7 @@ void explodeNetch(std::string netch, Proxy &node)
         transprot = GetMember(json, "TransferProtocol");
         tls = GetMember(json, "TLSSecure");
         sni = host;
-        if (group.empty())
+        if(group.empty())
             group = TROJAN_DEFAULT_GROUP;
         trojanConstruct(node, group, remark, address, port, password, transprot, host, path, fp, sni, std::vector<std::string>{}, tls == "true", udp, tfo, scv);
         break;
@@ -1139,7 +1125,7 @@ void explodeNetch(std::string netch, Proxy &node)
         obfs = GetMember(json, "OBFS");
         host = GetMember(json, "Host");
         aid = GetMember(json, "SnellVersion");
-        if (group.empty())
+        if(group.empty())
             group = SNELL_DEFAULT_GROUP;
         snellConstruct(node, group, remark, address, port, password, obfs, host, to_int(aid, 0), udp, tfo, scv);
         break;
@@ -1150,24 +1136,24 @@ void explodeNetch(std::string netch, Proxy &node)
 
 void explodeClash(Node yamlnode, std::vector<Proxy> &nodes)
 {
-    std::string proxytype, ps, server, port, cipher, group, password, underlying_proxy;                                                                                                                  // common
-    std::string type = "none", id, aid = "0", net = "tcp", path, host, edge, tls, sni;                                                                                                                   // vmess
-    std::string fp = "chrome", pbk, sid, packet_encoding;                                                                                                                                                // vless
-    std::string plugin, pluginopts, pluginopts_mode, pluginopts_host, pluginopts_mux, pluginopts_version, pluginopts_password;                                                                           // ss
-    std::string protocol, protoparam, obfs, obfsparam;                                                                                                                                                   // ssr
-    std::string flow, mode;                                                                                                                                                                              // trojan
-    std::string user;                                                                                                                                                                                    // socks
-    std::string ip, ipv6, private_key, public_key, mtu;                                                                                                                                                  // wireguard
-    std::string ports, obfs_protocol, up, up_speed, down, down_speed, auth, auth_str, /* obfs, sni,*/ fingerprint, ca, ca_str, recv_window_conn, recv_window, disable_mtu_discovery, hop_interval, alpn; // hysteria
-    std::string obfs_password, cwnd;                                                                                                                                                                     // hysteria2
-    std::string uuid, heartbeatinterval, disablesni, reducertt, requesttimeout, udprelaymode, congestioncontroller, maxudprelaypacketsize, fastopen, maxopenstreams;                                     // TUIC
+    std::string proxytype, ps, server, port, cipher, group, password, underlying_proxy; //common
+    std::string type = "none", id, aid = "0", net = "tcp", path, host, edge, tls, sni; //vmess
+    std::string plugin, pluginopts, pluginopts_mode, pluginopts_host, pluginopts_mux, pluginopts_version, pluginopts_password; //ss
+    std::string protocol, protoparam, obfs, obfsparam; //ssr
+    std::string flow, mode; //trojan
+    std::string user; //socks
+    std::string ip, ipv6, private_key, public_key, mtu; //wireguard
+    std::string ports, obfs_protocol, up, up_speed, down, down_speed, auth, auth_str,/* obfs, sni,*/ fingerprint, ca, ca_str, recv_window_conn, recv_window, disable_mtu_discovery, hop_interval, alpn; //hysteria
+    std::string obfs_password, cwnd; //hysteria2
+    std::string fp = "chrome", pbk, sid, packet_encoding; //vless
+    std::string uuid, heartbeatinterval, disablesni, reducertt, requesttimeout, udprelaymode, congestioncontroller, maxudprelaypacketsize, fastopen, maxopenstreams; //tuic
     string_array dns_server;
     tribool udp, tfo, scv;
     std::vector<std::string> alpnList;
     Node singleproxy;
     uint32_t index = nodes.size();
     const std::string section = yamlnode["proxies"].IsDefined() ? "proxies" : "Proxy";
-    for (uint32_t i = 0; i < yamlnode[section].size(); i++)
+    for(uint32_t i = 0; i < yamlnode[section].size(); i++)
     {
         Proxy node;
         singleproxy = yamlnode[section][i];
@@ -1176,11 +1162,12 @@ void explodeClash(Node yamlnode, std::vector<Proxy> &nodes)
         singleproxy["server"] >>= server;
         singleproxy["port"] >>= port;
         singleproxy["underlying-proxy"] >>= underlying_proxy;
-        if (port.empty() || port == "0")
+        if(port.empty() || port == "0")
             continue;
         udp = safe_as<std::string>(singleproxy["udp"]);
+        tfo = safe_as<std::string>(singleproxy["fast-open"]);
         scv = safe_as<std::string>(singleproxy["skip-cert-verify"]);
-        switch (hash_(proxytype))
+        switch(hash_(proxytype))
         {
         case "vmess"_hash:
             group = V2RAY_DEFAULT_GROUP;
@@ -1194,7 +1181,7 @@ void explodeClash(Node yamlnode, std::vector<Proxy> &nodes)
             singleproxy["cipher"] >>= cipher;
             net = singleproxy["network"].IsDefined() ? safe_as<std::string>(singleproxy["network"]) : "tcp";
             singleproxy["servername"] >>= sni;
-            switch (hash_(net))
+            switch(hash_(net))
             {
             case "http"_hash:
                 singleproxy["http-opts"]["path"][0] >>= path;
@@ -1202,7 +1189,7 @@ void explodeClash(Node yamlnode, std::vector<Proxy> &nodes)
                 edge.clear();
                 break;
             case "ws"_hash:
-                if (singleproxy["ws-opts"].IsDefined())
+                if(singleproxy["ws-opts"].IsDefined())
                 {
                     path = singleproxy["ws-opts"]["path"].IsDefined() ? safe_as<std::string>(singleproxy["ws-opts"]["path"]) : "/";
                     singleproxy["ws-opts"]["headers"]["Host"] >>= host;
@@ -1236,13 +1223,13 @@ void explodeClash(Node yamlnode, std::vector<Proxy> &nodes)
 
             singleproxy["cipher"] >>= cipher;
             singleproxy["password"] >>= password;
-            if (singleproxy["plugin"].IsDefined())
+            if(singleproxy["plugin"].IsDefined())
             {
-                switch (hash_(safe_as<std::string>(singleproxy["plugin"])))
+                switch(hash_(safe_as<std::string>(singleproxy["plugin"])))
                 {
                 case "obfs"_hash:
                     plugin = "obfs-local";
-                    if (singleproxy["plugin-opts"].IsDefined())
+                    if(singleproxy["plugin-opts"].IsDefined())
                     {
                         singleproxy["plugin-opts"]["mode"] >>= pluginopts_mode;
                         singleproxy["plugin-opts"]["host"] >>= pluginopts_host;
@@ -1250,7 +1237,7 @@ void explodeClash(Node yamlnode, std::vector<Proxy> &nodes)
                     break;
                 case "v2ray-plugin"_hash:
                     plugin = "v2ray-plugin";
-                    if (singleproxy["plugin-opts"].IsDefined())
+                    if(singleproxy["plugin-opts"].IsDefined())
                     {
                         singleproxy["plugin-opts"]["mode"] >>= pluginopts_mode;
                         singleproxy["plugin-opts"]["host"] >>= pluginopts_host;
@@ -1261,7 +1248,7 @@ void explodeClash(Node yamlnode, std::vector<Proxy> &nodes)
                     break;
                 case "shadow-tls"_hash:
                     plugin = "shadow-tls";
-                    if (singleproxy["plugin-opts"].IsDefined())
+                    if(singleproxy["plugin-opts"].IsDefined())
                     {
                         singleproxy["plugin-opts"]["host"] >>= pluginopts_host;
                         singleproxy["plugin-opts"]["password"] >>= pluginopts_password;
@@ -1272,7 +1259,7 @@ void explodeClash(Node yamlnode, std::vector<Proxy> &nodes)
                     break;
                 }
             }
-            else if (singleproxy["obfs"].IsDefined())
+            else if(singleproxy["obfs"].IsDefined())
             {
                 plugin = "obfs-local";
                 singleproxy["obfs"] >>= pluginopts_mode;
@@ -1281,7 +1268,7 @@ void explodeClash(Node yamlnode, std::vector<Proxy> &nodes)
             else
                 plugin.clear();
 
-            switch (hash_(plugin))
+            switch(hash_(plugin))
             {
             case "simple-obfs"_hash:
             case "obfs-local"_hash:
@@ -1290,33 +1277,33 @@ void explodeClash(Node yamlnode, std::vector<Proxy> &nodes)
                 break;
             case "v2ray-plugin"_hash:
                 pluginopts = "mode=" + pluginopts_mode + ";" + tls + pluginopts_mux;
-                if (!pluginopts_host.empty())
+                if(!pluginopts_host.empty())
                     pluginopts += "host=" + pluginopts_host + ";";
-                if (!path.empty())
+                if(!path.empty())
                     pluginopts += "path=" + path + ";";
-                if (!pluginopts_mux.empty())
+                if(!pluginopts_mux.empty())
                     pluginopts += "mux=" + pluginopts_mux + ";";
                 break;
             case "shadow-tls"_hash:
-                if (!pluginopts_host.empty())
+                if(!pluginopts_host.empty())
                     pluginopts += "host=" + pluginopts_host + ";";
-                if (!pluginopts_password.empty())
+                if(!pluginopts_password.empty())
                     pluginopts += "password=" + pluginopts_password + ";";
-                if (!pluginopts_version.empty())
+                if(!pluginopts_version.empty())
                     pluginopts += "version=" + pluginopts_version + ";";
                 break;
             }
 
-            // support for go-shadowsocks2
-            if (cipher == "AEAD_CHACHA20_POLY1305")
+            //support for go-shadowsocks2
+            if(cipher == "AEAD_CHACHA20_POLY1305")
                 cipher = "chacha20-ietf-poly1305";
-            else if (strFind(cipher, "AEAD"))
+            else if(strFind(cipher, "AEAD"))
             {
                 cipher = replaceAllDistinct(replaceAllDistinct(cipher, "AEAD_", ""), "_", "-");
                 std::transform(cipher.begin(), cipher.end(), cipher.begin(), ::tolower);
             }
 
-            ssConstruct(node, group, ps, server, port, password, cipher, plugin, pluginopts, udp, tfo, scv, tribool(), underlying_proxy);
+            ssConstruct(node, group, ps, server, port, password, cipher, plugin, pluginopts, udp, tfo, scv,  tribool(), underlying_proxy);
             break;
         case "socks5"_hash:
             group = SOCKS_DEFAULT_GROUP;
@@ -1324,22 +1311,21 @@ void explodeClash(Node yamlnode, std::vector<Proxy> &nodes)
             singleproxy["username"] >>= user;
             singleproxy["password"] >>= password;
 
-            socksConstruct(node, group, ps, server, port, user, password, tribool(), tribool(), tribool(), underlying_proxy);
+            socksConstruct(node, group, ps, server, port, user, password, tribool(),  tribool(),  tribool(), underlying_proxy);
             break;
         case "ssr"_hash:
             group = SSR_DEFAULT_GROUP;
 
             singleproxy["cipher"] >>= cipher;
-            if (cipher == "dummy")
-                cipher = "none";
+            if(cipher == "dummy") cipher = "none";
             singleproxy["password"] >>= password;
             singleproxy["protocol"] >>= protocol;
             singleproxy["obfs"] >>= obfs;
-            if (singleproxy["protocol-param"].IsDefined())
+            if(singleproxy["protocol-param"].IsDefined())
                 singleproxy["protocol-param"] >>= protoparam;
             else
                 singleproxy["protocolparam"] >>= protoparam;
-            if (singleproxy["obfs-param"].IsDefined())
+            if(singleproxy["obfs-param"].IsDefined())
                 singleproxy["obfs-param"] >>= obfsparam;
             else
                 singleproxy["obfsparam"] >>= obfsparam;
@@ -1362,7 +1348,7 @@ void explodeClash(Node yamlnode, std::vector<Proxy> &nodes)
             singleproxy["sni"] >>= host;
             singleproxy["sni"] >>= sni;
             singleproxy["network"] >>= net;
-            switch (hash_(net))
+            switch(hash_(net))
             {
             case "grpc"_hash:
                 singleproxy["grpc-opts"]["grpc-service-name"] >>= path;
@@ -1399,62 +1385,6 @@ void explodeClash(Node yamlnode, std::vector<Proxy> &nodes)
             singleproxy["ipv6"] >>= ipv6;
 
             wireguardConstruct(node, group, ps, server, port, ip, ipv6, private_key, public_key, password, dns_server, mtu, "0", "", "", udp, underlying_proxy);
-            break;
-        case "vless"_hash:
-            group = XRAY_DEFAULT_GROUP;
-
-            singleproxy["uuid"] >>= id;
-            singleproxy["alterId"] >>= aid;
-            net = singleproxy["network"].IsDefined() ? safe_as<std::string>(singleproxy["network"]) : "tcp";
-            sni = singleproxy["sni"].IsDefined() ? safe_as<std::string>(singleproxy["sni"]) : safe_as<std::string>(singleproxy["servername"]);
-            switch (hash_(net))
-            {
-            case "http"_hash:
-                singleproxy["http-opts"]["path"][0] >>= path;
-                singleproxy["http-opts"]["headers"]["Host"][0] >>= host;
-                edge.clear();
-                break;
-            case "ws"_hash:
-                if (singleproxy["ws-opts"].IsDefined())
-                {
-                    path = singleproxy["ws-opts"]["path"].IsDefined() ? safe_as<std::string>(singleproxy["ws-opts"]["path"]) : "/";
-                    singleproxy["ws-opts"]["headers"]["Host"] >>= host;
-                    singleproxy["ws-opts"]["headers"]["Edge"] >>= edge;
-                }
-                else
-                {
-                    path = singleproxy["ws-path"].IsDefined() ? safe_as<std::string>(singleproxy["ws-path"]) : "/";
-                    singleproxy["ws-headers"]["Host"] >>= host;
-                    singleproxy["ws-headers"]["Edge"] >>= edge;
-                }
-                break;
-            case "h2"_hash:
-                singleproxy["h2-opts"]["path"] >>= path;
-                singleproxy["h2-opts"]["host"][0] >>= host;
-                edge.clear();
-                break;
-            case "grpc"_hash:
-                singleproxy["servername"] >>= host;
-                singleproxy["grpc-opts"]["grpc-service-name"] >>= path;
-                edge.clear();
-                break;
-            }
-            tls = safe_as<std::string>(singleproxy["tls"]) == "true" ? "tls" : "";
-            if (singleproxy["reality-opts"].IsDefined())
-            {
-                host = singleproxy["sni"].IsDefined() ? safe_as<std::string>(singleproxy["sni"]) : safe_as<std::string>(singleproxy["servername"]);
-                printf("host:%s", host.c_str());
-                singleproxy["reality-opts"]["public-key"] >>= pbk;
-                singleproxy["reality-opts"]["short-id"] >>= sid;
-            }
-            singleproxy["flow"] >>= flow;
-            singleproxy["client-fingerprint"] >>= fp;
-            singleproxy["alpn"] >>= alpnList;
-            singleproxy["packet-encoding"] >>= packet_encoding;
-            bool vless_udp;
-            singleproxy["udp"] >> vless_udp;
-
-            vlessConstruct(node, group, ps, server, port, type, id, aid, net, "auto", flow, mode, path, host, "", tls, pbk, sid, fp, sni, alpnList, packet_encoding, udp, underlying_proxy);
             break;
         case "hysteria"_hash:
             group = HYSTERIA_DEFAULT_GROUP;
@@ -1511,6 +1441,62 @@ void explodeClash(Node yamlnode, std::vector<Proxy> &nodes)
 
             hysteria2Construct(node, group, ps, server, port, ports, up, down, password, obfs, obfs_password, sni, fingerprint, alpn, ca, ca_str, cwnd, tfo, scv, underlying_proxy);
             break;
+        case "vless"_hash:
+            group = XRAY_DEFAULT_GROUP;
+
+            singleproxy["uuid"] >>= id;
+            singleproxy["alterId"] >>= aid;
+            net = singleproxy["network"].IsDefined() ? safe_as<std::string>(singleproxy["network"]) : "tcp";
+            sni = singleproxy["sni"].IsDefined() ? safe_as<std::string>(singleproxy["sni"]) : safe_as<std::string>(singleproxy["servername"]);
+            switch(hash_(net))
+            {
+            case "http"_hash:
+                singleproxy["http-opts"]["path"][0] >>= path;
+                singleproxy["http-opts"]["headers"]["Host"][0] >>= host;
+                edge.clear();
+                break;
+            case "ws"_hash:
+                if (singleproxy["ws-opts"].IsDefined())
+                {
+                    path = singleproxy["ws-opts"]["path"].IsDefined() ? safe_as<std::string>(singleproxy["ws-opts"]["path"]) : "/";
+                    singleproxy["ws-opts"]["headers"]["Host"] >>= host;
+                    singleproxy["ws-opts"]["headers"]["Edge"] >>= edge;
+                }
+                else
+                {
+                    path = singleproxy["ws-path"].IsDefined() ? safe_as<std::string>(singleproxy["ws-path"]) : "/";
+                    singleproxy["ws-headers"]["Host"] >>= host;
+                    singleproxy["ws-headers"]["Edge"] >>= edge;
+                }
+                break;
+            case "h2"_hash:
+                singleproxy["h2-opts"]["path"] >>= path;
+                singleproxy["h2-opts"]["host"][0] >>= host;
+                edge.clear();
+                break;
+            case "grpc"_hash:
+                singleproxy["servername"] >>= host;
+                singleproxy["grpc-opts"]["grpc-service-name"] >>= path;
+                edge.clear();
+                break;
+            }
+            tls = safe_as<std::string>(singleproxy["tls"]) == "true" ? "tls" : "";
+            if (singleproxy["reality-opts"].IsDefined())
+            {
+                host = singleproxy["sni"].IsDefined() ? safe_as<std::string>(singleproxy["sni"]) : safe_as<std::string>(singleproxy["servername"]);
+                printf("host:%s", host.c_str());
+                singleproxy["reality-opts"]["public-key"] >>= pbk;
+                singleproxy["reality-opts"]["short-id"] >>= sid;
+            }
+            singleproxy["flow"] >>= flow;
+            singleproxy["client-fingerprint"] >>= fp;
+            singleproxy["alpn"] >>= alpnList;
+            singleproxy["packet-encoding"] >>= packet_encoding;
+            bool vless_udp;
+            singleproxy["udp"] >> vless_udp;
+
+            vlessConstruct(node, group, ps, server, port, type, id, aid, net, "auto", flow, mode, path, host, "", tls, pbk, sid, fp, sni, alpnList, packet_encoding, udp, underlying_proxy);
+            break;
         case "tuic"_hash:
             group = TUIC_DEFAULT_GROUP;
             singleproxy["uuid"] >>= uuid;
@@ -1549,16 +1535,16 @@ void explodeStdVMess(std::string vmess, Proxy &node)
     string_size pos;
 
     pos = vmess.rfind('#');
-    if (pos != std::string::npos)
+    if(pos != std::string::npos)
     {
         remarks = urlDecode(vmess.substr(pos + 1));
         vmess.erase(pos);
     }
     const std::string stdvmess_matcher = R"(^([a-z]+)(?:\+([a-z]+))?:([\da-f]{4}(?:[\da-f]{4}-){4}[\da-f]{12})-(\d+)@(.+):(\d+)(?:\/?\?(.*))?$)";
-    if (regGetMatch(vmess, stdvmess_matcher, 8, 0, &net, &tls, &id, &aid, &add, &port, &addition))
+    if(regGetMatch(vmess, stdvmess_matcher, 8, 0, &net, &tls, &id, &aid, &add, &port, &addition))
         return;
 
-    switch (hash_(net))
+    switch(hash_(net))
     {
     case "tcp"_hash:
     case "kcp"_hash:
@@ -1578,7 +1564,7 @@ void explodeStdVMess(std::string vmess, Proxy &node)
         return;
     }
 
-    if (remarks.empty())
+    if(remarks.empty())
         remarks = add + ":" + port;
     std::string alpn = getUrlArg(addition, "alpn");
     std::vector<std::string> alpnList;
@@ -1588,6 +1574,208 @@ void explodeStdVMess(std::string vmess, Proxy &node)
     }
 
     vmessConstruct(node, V2RAY_DEFAULT_GROUP, remarks, add, port, type, id, aid, net, "auto", path, host, "", tls, "", alpnList);
+}
+
+void explodeShadowrocket(std::string rocket, Proxy &node)
+{
+    std::string add, port, type, id, aid, net = "tcp", path, host, tls, cipher, remarks;
+    std::string obfs; //for other style of link
+    std::string addition;
+    rocket = rocket.substr(8);
+
+    string_size pos = rocket.find('?');
+    addition = rocket.substr(pos + 1);
+    rocket.erase(pos);
+
+    if(regGetMatch(urlSafeBase64Decode(rocket), "(.*?):(.*)@(.*):(.*)", 5, 0, &cipher, &id, &add, &port))
+        return;
+    if(port == "0")
+        return;
+    remarks = urlDecode(getUrlArg(addition, "remarks"));
+    obfs = getUrlArg(addition, "obfs");
+    if(!obfs.empty())
+    {
+        if(obfs == "websocket")
+        {
+            net = "ws";
+            host = getUrlArg(addition, "obfsParam");
+            path = getUrlArg(addition, "path");
+        }
+    }
+    else
+    {
+        net = getUrlArg(addition, "network");
+        host = getUrlArg(addition, "wsHost");
+        path = getUrlArg(addition, "wspath");
+    }
+    tls = getUrlArg(addition, "tls") == "1" ? "tls" : "";
+    aid = getUrlArg(addition, "aid");
+
+    if(aid.empty())
+        aid = "0";
+
+    if(remarks.empty())
+        remarks = add + ":" + port;
+    std::string alpn = getUrlArg(addition, "alpn");
+    std::vector<std::string> alpnList;
+    if (!alpn.empty())
+    {
+        alpnList.push_back(alpn);
+    }
+
+    vmessConstruct(node, V2RAY_DEFAULT_GROUP, remarks, add, port, type, id, aid, net, cipher, path, host, "", tls, "", alpnList);
+}
+
+void explodeKitsunebi(std::string kit, Proxy &node)
+{
+    std::string add, port, type, id, aid = "0", net = "tcp", path, host, tls, cipher = "auto", remarks;
+    std::string addition;
+    string_size pos;
+    kit = kit.substr(9);
+
+    pos = kit.find('#');
+    if(pos != std::string::npos)
+    {
+        remarks = kit.substr(pos + 1);
+        kit = kit.substr(0, pos);
+    }
+
+    pos = kit.find('?');
+    addition = kit.substr(pos + 1);
+    kit = kit.substr(0, pos);
+
+    if(regGetMatch(kit, "(.*?)@(.*):(.*)", 4, 0, &id, &add, &port))
+        return;
+    pos = port.find('/');
+    if(pos != std::string::npos)
+    {
+        path = port.substr(pos);
+        port.erase(pos);
+    }
+    if(port == "0")
+        return;
+    net = getUrlArg(addition, "network");
+    tls = getUrlArg(addition, "tls") == "true" ? "tls" : "";
+    host = getUrlArg(addition, "ws.host");
+
+    if(remarks.empty())
+        remarks = add + ":" + port;
+    std::string alpn = getUrlArg(addition, "alpn");
+    std::vector<std::string> alpnList;
+    if (!alpn.empty())
+    {
+        alpnList.push_back(alpn);
+    }
+
+    vmessConstruct(node, V2RAY_DEFAULT_GROUP, remarks, add, port, type, id, aid, net, cipher, path, host, "", tls, "", alpnList);
+}
+
+void explodeStdHysteria2(std::string hysteria2, Proxy &node) {
+    std::string add, port, ports, password, host, insecure, up, down, alpn, obfs, obfs_password, remarks, sni, fingerprint;
+    std::string addition;
+    tribool scv;
+    hysteria2 = hysteria2.substr(12);
+    string_size pos;
+
+    pos = hysteria2.rfind("#");
+    if (pos != hysteria2.npos) {
+        remarks = urlDecode(hysteria2.substr(pos + 1));
+        hysteria2.erase(pos);
+    }
+
+    pos = hysteria2.rfind("?");
+    if (pos != hysteria2.npos) {
+        addition = hysteria2.substr(pos + 1);
+        hysteria2.erase(pos);
+    }
+
+    if (strFind(hysteria2, "@")) {
+        if (regGetMatch(hysteria2, R"(^(.*?)@(.*)[:](\d+)$)", 4, 0, &password, &add, &port))
+            return;
+    } else {
+        password = getUrlArg(addition, "password");
+        if (password.empty())
+            return;
+
+        if (!strFind(hysteria2, ":"))
+            return;
+
+        if (regGetMatch(hysteria2, R"(^(.*)[:](\d+)$)", 3, 0, &add, &port))
+            return;
+    }
+
+    scv = getUrlArg(addition, "insecure");
+    ports = getUrlArg(addition, "ports");
+    up = getUrlArg(addition, "up");
+    down = getUrlArg(addition, "down");
+    // the alpn is not supported officially yet
+    alpn = getUrlArg(addition, "alpn");
+    obfs = getUrlArg(addition, "obfs");
+    obfs_password = getUrlArg(addition, "obfs-password");
+    sni = getUrlArg(addition, "sni");
+    fingerprint = getUrlArg(addition, "pinSHA256");
+    if (remarks.empty())
+        remarks = add + ":" + port;
+
+    hysteria2Construct(node, HYSTERIA2_DEFAULT_GROUP, remarks, add, port, ports, up, down, password, obfs, obfs_password, sni, fingerprint, "", "", "", "", tribool(), scv);
+    return;
+}
+
+void explodeHysteria2(std::string hysteria2, Proxy &node) {
+    hysteria2 = regReplace(hysteria2, "(hysteria2|hy2)://", "hysteria2://");
+
+    // replace /? with ?
+    hysteria2 = regReplace(hysteria2, "/\\?", "?", true, false);
+    if (regMatch(hysteria2, "hysteria2://(.*?)[:](.*)")) {
+        explodeStdHysteria2(hysteria2, node);
+        return;
+    }
+}
+
+void explodeStdHysteria(std::string hysteria, Proxy &node)
+{
+    std::string add, port, remarks;
+    std::string ports, protocol, obfs_protocol, up, up_speed, down, down_speed, auth, auth_str, obfs, sni, fingerprint, ca, ca_str, recv_window_conn, recv_window, disable_mtu_discovery, hop_interval, alpn;
+    std::string addition;
+    hysteria = hysteria.substr(11);
+    string_size pos;
+
+    pos = hysteria.rfind("#");
+    if (pos != hysteria.npos)
+    {
+        remarks = urlDecode(hysteria.substr(pos + 1));
+        hysteria.erase(pos);
+    }
+    const std::string stdhysteria_matcher = R"(^(.*)[:](\d+)[?](.*)$)";
+    if (regGetMatch(hysteria, stdhysteria_matcher, 4, 0, &port, &ports, &addition))
+        return;
+    protocol = getUrlArg(addition, "protocol");
+    obfs_protocol = getUrlArg(addition, "obfs-protocol");
+    up = getUrlArg(addition, "up");
+    up_speed = getUrlArg(addition, "up-speed");
+    down = getUrlArg(addition, "down");
+    down_speed = getUrlArg(addition, "down-speed");
+    auth = getUrlArg(addition, "auth");
+    auth_str = getUrlArg(addition, "auth-str");
+    if (auth_str.empty())
+        auth_str = getUrlArg(addition, "auth_str");
+    obfs = getUrlArg(addition, "obfs");
+    sni = getUrlArg(addition, "sni");
+    fingerprint = getUrlArg(addition, "fingerprint");
+    // the alpn is not supported officially yet
+    alpn = getUrlArg(addition, "alpn");
+    ca = getUrlArg(addition, "ca");
+    ca_str = getUrlArg(addition, "ca-str");
+    recv_window_conn = getUrlArg(addition, "recv-window-conn");
+    recv_window = getUrlArg(addition, "recv-window");
+    disable_mtu_discovery = getUrlArg(addition, "disable-mtu-discovery");
+    hop_interval = getUrlArg(addition, "hop-interval");
+
+    if (remarks.empty())
+        remarks = add + ":" + port;
+
+    hysteriaConstruct(node, HYSTERIA_DEFAULT_GROUP, remarks, add, port, ports, protocol, obfs_protocol, up, up_speed, down, down_speed, auth, auth_str, obfs, sni, fingerprint, ca, ca_str, recv_window_conn, recv_window, disable_mtu_discovery, hop_interval, alpn);
+    return;
 }
 
 void explodeStdVless(std::string vless, Proxy &node)
@@ -1649,109 +1837,6 @@ void explodeStdVless(std::string vless, Proxy &node)
     sni = getUrlArg(addition, "sni");
 
     vlessConstruct(node, XRAY_DEFAULT_GROUP, remarks, add, port, type, id, aid, net, "auto", flow, mode, path, host, "", tls, pbk, sid, fp, sni, alpnList, packet_encoding);
-    return;
-}
-
-void explodeStdHysteria(std::string hysteria, Proxy &node)
-{
-    std::string add, port, remarks;
-    std::string ports, protocol, obfs_protocol, up, up_speed, down, down_speed, auth, auth_str, obfs, sni, fingerprint, ca, ca_str, recv_window_conn, recv_window, disable_mtu_discovery, hop_interval, alpn;
-    std::string addition;
-    hysteria = hysteria.substr(11);
-    string_size pos;
-
-    pos = hysteria.rfind("#");
-    if (pos != hysteria.npos)
-    {
-        remarks = urlDecode(hysteria.substr(pos + 1));
-        hysteria.erase(pos);
-    }
-    const std::string stdhysteria_matcher = R"(^(.*)[:](\d+)[?](.*)$)";
-    if (regGetMatch(hysteria, stdhysteria_matcher, 4, 0, &port, &ports, &addition))
-        return;
-    protocol = getUrlArg(addition, "protocol");
-    obfs_protocol = getUrlArg(addition, "obfs-protocol");
-    up = getUrlArg(addition, "up");
-    up_speed = getUrlArg(addition, "up-speed");
-    down = getUrlArg(addition, "down");
-    down_speed = getUrlArg(addition, "down-speed");
-    auth = getUrlArg(addition, "auth");
-    auth_str = getUrlArg(addition, "auth-str");
-    if (auth_str.empty())
-        auth_str = getUrlArg(addition, "auth_str");
-    obfs = getUrlArg(addition, "obfs");
-    sni = getUrlArg(addition, "sni");
-    fingerprint = getUrlArg(addition, "fingerprint");
-    // the alpn is not supported officially yet
-    alpn = getUrlArg(addition, "alpn");
-    ca = getUrlArg(addition, "ca");
-    ca_str = getUrlArg(addition, "ca-str");
-    recv_window_conn = getUrlArg(addition, "recv-window-conn");
-    recv_window = getUrlArg(addition, "recv-window");
-    disable_mtu_discovery = getUrlArg(addition, "disable-mtu-discovery");
-    hop_interval = getUrlArg(addition, "hop-interval");
-
-    if (remarks.empty())
-        remarks = add + ":" + port;
-
-    hysteriaConstruct(node, HYSTERIA_DEFAULT_GROUP, remarks, add, port, ports, protocol, obfs_protocol, up, up_speed, down, down_speed, auth, auth_str, obfs, sni, fingerprint, ca, ca_str, recv_window_conn, recv_window, disable_mtu_discovery, hop_interval, alpn);
-    return;
-}
-
-void explodeStdHysteria2(std::string hysteria2, Proxy &node)
-{
-    std::string add, port, ports, password, host, insecure, up, down, alpn, obfs, obfs_password, remarks, sni, fingerprint;
-    std::string addition;
-    tribool scv;
-    hysteria2 = hysteria2.substr(12);
-    string_size pos;
-
-    pos = hysteria2.rfind("#");
-    if (pos != hysteria2.npos)
-    {
-        remarks = urlDecode(hysteria2.substr(pos + 1));
-        hysteria2.erase(pos);
-    }
-
-    pos = hysteria2.rfind("?");
-    if (pos != hysteria2.npos)
-    {
-        addition = hysteria2.substr(pos + 1);
-        hysteria2.erase(pos);
-    }
-
-    if (strFind(hysteria2, "@"))
-    {
-        if (regGetMatch(hysteria2, R"(^(.*?)@(.*)[:](\d+)$)", 4, 0, &password, &add, &port))
-            return;
-    }
-    else
-    {
-        password = getUrlArg(addition, "password");
-        if (password.empty())
-            return;
-
-        if (!strFind(hysteria2, ":"))
-            return;
-
-        if (regGetMatch(hysteria2, R"(^(.*)[:](\d+)$)", 3, 0, &add, &port))
-            return;
-    }
-
-    scv = getUrlArg(addition, "insecure");
-    ports = getUrlArg(addition, "ports");
-    up = getUrlArg(addition, "up");
-    down = getUrlArg(addition, "down");
-    // the alpn is not supported officially yet
-    alpn = getUrlArg(addition, "alpn");
-    obfs = getUrlArg(addition, "obfs");
-    obfs_password = getUrlArg(addition, "obfs-password");
-    sni = getUrlArg(addition, "sni");
-    fingerprint = getUrlArg(addition, "pinSHA256");
-    if (remarks.empty())
-        remarks = add + ":" + port;
-
-    hysteria2Construct(node, HYSTERIA2_DEFAULT_GROUP, remarks, add, port, ports, up, down, password, obfs, obfs_password, sni, fingerprint, "", "", "", "", tribool(), scv);
     return;
 }
 
@@ -1828,115 +1913,21 @@ void explodeStdTUIC(std::string TUIC, Proxy &node)
     return;
 }
 
-void explodeShadowrocket(std::string rocket, Proxy &node)
-{
-    std::string add, port, type, id, aid, net = "tcp", path, host, tls, cipher, remarks;
-    std::string obfs; // for other style of link
-    std::string addition;
-    rocket = rocket.substr(8);
-
-    string_size pos = rocket.find('?');
-    addition = rocket.substr(pos + 1);
-    rocket.erase(pos);
-
-    if (regGetMatch(urlSafeBase64Decode(rocket), "(.*?):(.*)@(.*):(.*)", 5, 0, &cipher, &id, &add, &port))
-        return;
-    if (port == "0")
-        return;
-    remarks = urlDecode(getUrlArg(addition, "remarks"));
-    obfs = getUrlArg(addition, "obfs");
-    if (!obfs.empty())
-    {
-        if (obfs == "websocket")
-        {
-            net = "ws";
-            host = getUrlArg(addition, "obfsParam");
-            path = getUrlArg(addition, "path");
-        }
-    }
-    else
-    {
-        net = getUrlArg(addition, "network");
-        host = getUrlArg(addition, "wsHost");
-        path = getUrlArg(addition, "wspath");
-    }
-    tls = getUrlArg(addition, "tls") == "1" ? "tls" : "";
-    aid = getUrlArg(addition, "aid");
-
-    if (aid.empty())
-        aid = "0";
-
-    if (remarks.empty())
-        remarks = add + ":" + port;
-    std::string alpn = getUrlArg(addition, "alpn");
-    std::vector<std::string> alpnList;
-    if (!alpn.empty())
-    {
-        alpnList.push_back(alpn);
-    }
-
-    vmessConstruct(node, V2RAY_DEFAULT_GROUP, remarks, add, port, type, id, aid, net, cipher, path, host, "", tls, "", alpnList);
-}
-
-void explodeKitsunebi(std::string kit, Proxy &node)
-{
-    std::string add, port, type, id, aid = "0", net = "tcp", path, host, tls, cipher = "auto", remarks;
-    std::string addition;
-    string_size pos;
-    kit = kit.substr(9);
-
-    pos = kit.find('#');
-    if (pos != std::string::npos)
-    {
-        remarks = kit.substr(pos + 1);
-        kit = kit.substr(0, pos);
-    }
-
-    pos = kit.find('?');
-    addition = kit.substr(pos + 1);
-    kit = kit.substr(0, pos);
-
-    if (regGetMatch(kit, "(.*?)@(.*):(.*)", 4, 0, &id, &add, &port))
-        return;
-    pos = port.find('/');
-    if (pos != std::string::npos)
-    {
-        path = port.substr(pos);
-        port.erase(pos);
-    }
-    if (port == "0")
-        return;
-    net = getUrlArg(addition, "network");
-    tls = getUrlArg(addition, "tls") == "true" ? "tls" : "";
-    host = getUrlArg(addition, "ws.host");
-
-    if (remarks.empty())
-        remarks = add + ":" + port;
-    std::string alpn = getUrlArg(addition, "alpn");
-    std::vector<std::string> alpnList;
-    if (!alpn.empty())
-    {
-        alpnList.push_back(alpn);
-    }
-
-    vmessConstruct(node, V2RAY_DEFAULT_GROUP, remarks, add, port, type, id, aid, net, cipher, path, host, "", tls, "", alpnList);
-}
-
 // peer = (public-key = bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=, allowed-ips = "0.0.0.0/0, ::/0", endpoint = engage.cloudflareclient.com:2408, client-id = 139/184/125),(public-key = bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=, endpoint = engage.cloudflareclient.com:2408)
 void parsePeers(Proxy &node, const std::string &data)
 {
     auto peers = regGetAllMatch(data, R"(\((.*?)\))", true);
-    if (peers.empty())
+    if(peers.empty())
         return;
     auto peer = peers[0];
     auto peerdata = regGetAllMatch(peer, R"(([a-z-]+) ?= ?([^" ),]+|".*?"),? ?)", true);
-    if (peerdata.size() % 2 != 0)
+    if(peerdata.size() % 2 != 0)
         return;
-    for (size_t i = 0; i < peerdata.size(); i += 2)
+    for(size_t i = 0; i < peerdata.size(); i += 2)
     {
         auto key = peerdata[i];
         auto val = peerdata[i + 1];
-        switch (hash_(key))
+        switch(hash_(key))
         {
         case "public-key"_hash:
             node.PublicKey = val;
@@ -1973,24 +1964,24 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
     ini.allow_dup_section_titles = true;
     ini.set_isolated_items_section("Proxy");
     ini.add_direct_save_section("Proxy");
-    if (surge.find("[Proxy]") != surge.npos)
+    if(surge.find("[Proxy]") != surge.npos)
         surge = regReplace(surge, R"(^[\S\s]*?\[)", "[", false);
     ini.parse(surge);
 
-    if (!ini.section_exist("Proxy"))
+    if(!ini.section_exist("Proxy"))
         return false;
     ini.enter_section("Proxy");
     ini.get_items(proxies);
 
     const std::string proxystr = "(.*?)\\s*=\\s*(.*)";
 
-    for (auto &x : proxies)
+    for(auto &x : proxies)
     {
-        std::string remarks, server, port, method, username, password, sni;                                // common
-        std::string plugin, pluginopts, pluginopts_mode, pluginopts_host, mod_url, mod_md5;                // ss
-        std::string id, net, tls, host, edge, path, fp;                                                    // v2
-        std::string protocol, protoparam;                                                                  // ssr
-        std::string section, ip, ipv6, private_key, public_key, mtu, test_url, client_id, peer, keepalive; // wireguard
+        std::string remarks, server, port, method, username, password, sni; //common
+        std::string plugin, pluginopts, pluginopts_mode, pluginopts_host, mod_url, mod_md5; //ss
+        std::string id, net, tls, host, edge, path, fp; //v2
+        std::string protocol, protoparam; //ssr
+        std::string section, ip, ipv6, private_key, public_key, mtu, test_url, client_id, peer, keepalive; //wireguard
         string_array dns_servers;
         string_multimap wireguard_config;
         std::string version, aead = "1";
@@ -2005,16 +1996,16 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
         */
         regGetMatch(x.second, proxystr, 3, 0, &remarks, &config);
         configs = split(config, ",");
-        if (configs.size() < 3)
+        if(configs.size() < 3)
             continue;
-        switch (hash_(configs[0]))
+        switch(hash_(configs[0]))
         {
         case "direct"_hash:
         case "reject"_hash:
         case "reject-tinygif"_hash:
             continue;
-        case "custom"_hash: // surge 2 style custom proxy
-                            // remove module detection to speed up parsing and compatible with broken module
+        case "custom"_hash: //surge 2 style custom proxy
+            //remove module detection to speed up parsing and compatible with broken module
             /*
             mod_url = trim(configs[5]);
             if(parsedMD5.count(mod_url) > 0)
@@ -2028,68 +2019,68 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
             }
             */
 
-            // if(mod_md5 == modSSMD5) //is SSEncrypt module
-            {
-                if (configs.size() < 5)
-                    continue;
-                server = trim(configs[1]);
-                port = trim(configs[2]);
-                if (port == "0")
-                    continue;
-                method = trim(configs[3]);
-                password = trim(configs[4]);
-
-                for (i = 6; i < configs.size(); i++)
-                {
-                    vArray = split(configs[i], "=");
-                    if (vArray.size() < 2)
-                        continue;
-                    itemName = trim(vArray[0]);
-                    itemVal = trim(vArray[1]);
-                    switch (hash_(itemName))
-                    {
-                    case "obfs"_hash:
-                        plugin = "simple-obfs";
-                        pluginopts_mode = itemVal;
-                        break;
-                    case "obfs-host"_hash:
-                        pluginopts_host = itemVal;
-                        break;
-                    case "udp-relay"_hash:
-                        udp = itemVal;
-                        break;
-                    case "tfo"_hash:
-                        tfo = itemVal;
-                        break;
-                    default:
-                        continue;
-                    }
-                }
-                if (!plugin.empty())
-                {
-                    pluginopts = "obfs=" + pluginopts_mode;
-                    pluginopts += pluginopts_host.empty() ? "" : ";obfs-host=" + pluginopts_host;
-                }
-
-                ssConstruct(node, SS_DEFAULT_GROUP, remarks, server, port, password, method, plugin, pluginopts, udp, tfo, scv);
-            }
-            // else
-            //     continue;
-            break;
-        case "ss"_hash: // surge 3 style ss proxy
+            //if(mod_md5 == modSSMD5) //is SSEncrypt module
+        {
+            if(configs.size() < 5)
+                continue;
             server = trim(configs[1]);
             port = trim(configs[2]);
-            if (port == "0")
+            if(port == "0")
                 continue;
+            method = trim(configs[3]);
+            password = trim(configs[4]);
 
-            for (i = 3; i < configs.size(); i++)
+            for(i = 6; i < configs.size(); i++)
             {
                 vArray = split(configs[i], "=");
-                if (vArray.size() < 2)
+                if(vArray.size() < 2)
                     continue;
                 itemName = trim(vArray[0]);
                 itemVal = trim(vArray[1]);
-                switch (hash_(itemName))
+                switch(hash_(itemName))
+                {
+                case "obfs"_hash:
+                    plugin = "simple-obfs";
+                    pluginopts_mode = itemVal;
+                    break;
+                case "obfs-host"_hash:
+                    pluginopts_host = itemVal;
+                    break;
+                case "udp-relay"_hash:
+                    udp = itemVal;
+                    break;
+                case "tfo"_hash:
+                    tfo = itemVal;
+                    break;
+                default:
+                    continue;
+                }
+            }
+            if(!plugin.empty())
+            {
+                pluginopts = "obfs=" + pluginopts_mode;
+                pluginopts += pluginopts_host.empty() ? "" : ";obfs-host=" + pluginopts_host;
+            }
+
+            ssConstruct(node, SS_DEFAULT_GROUP, remarks, server, port, password, method, plugin, pluginopts, udp, tfo, scv);
+        }
+            //else
+            //    continue;
+        break;
+        case "ss"_hash: //surge 3 style ss proxy
+            server = trim(configs[1]);
+            port = trim(configs[2]);
+            if(port == "0")
+                continue;
+
+            for(i = 3; i < configs.size(); i++)
+            {
+                vArray = split(configs[i], "=");
+                if(vArray.size() < 2)
+                    continue;
+                itemName = trim(vArray[0]);
+                itemVal = trim(vArray[1]);
+                switch(hash_(itemName))
                 {
                 case "encrypt-method"_hash:
                     method = itemVal;
@@ -2114,7 +2105,7 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
                     continue;
                 }
             }
-            if (!plugin.empty())
+            if(!plugin.empty())
             {
                 pluginopts = "obfs=" + pluginopts_mode;
                 pluginopts += pluginopts_host.empty() ? "" : ";obfs-host=" + pluginopts_host;
@@ -2122,24 +2113,24 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
 
             ssConstruct(node, SS_DEFAULT_GROUP, remarks, server, port, password, method, plugin, pluginopts, udp, tfo, scv);
             break;
-        case "socks5"_hash: // surge 3 style socks5 proxy
+        case "socks5"_hash: //surge 3 style socks5 proxy
             server = trim(configs[1]);
             port = trim(configs[2]);
-            if (port == "0")
+            if(port == "0")
                 continue;
-            if (configs.size() >= 5)
+            if(configs.size() >= 5)
             {
                 username = trim(configs[3]);
                 password = trim(configs[4]);
             }
-            for (i = 5; i < configs.size(); i++)
+            for(i = 5; i < configs.size(); i++)
             {
                 vArray = split(configs[i], "=");
-                if (vArray.size() < 2)
+                if(vArray.size() < 2)
                     continue;
                 itemName = trim(vArray[0]);
                 itemVal = trim(vArray[1]);
-                switch (hash_(itemName))
+                switch(hash_(itemName))
                 {
                 case "udp-relay"_hash:
                     udp = itemVal;
@@ -2156,22 +2147,22 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
             }
             socksConstruct(node, SOCKS_DEFAULT_GROUP, remarks, server, port, username, password, udp, tfo, scv);
             break;
-        case "vmess"_hash: // surge 4 style vmess proxy
+        case "vmess"_hash: //surge 4 style vmess proxy
             server = trim(configs[1]);
             port = trim(configs[2]);
-            if (port == "0")
+            if(port == "0")
                 continue;
             net = "tcp";
             method = "auto";
 
-            for (i = 3; i < configs.size(); i++)
+            for(i = 3; i < configs.size(); i++)
             {
                 vArray = split(configs[i], "=");
-                if (vArray.size() != 2)
+                if(vArray.size() != 2)
                     continue;
                 itemName = trim(vArray[0]);
                 itemVal = trim(vArray[1]);
-                switch (hash_(itemName))
+                switch(hash_(itemName))
                 {
                 case "username"_hash:
                     id = itemVal;
@@ -2190,14 +2181,14 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
                     break;
                 case "ws-headers"_hash:
                     headers = split(itemVal, "|");
-                    for (auto &y : headers)
+                    for(auto &y : headers)
                     {
                         header = split(trim(y), ":");
-                        if (header.size() != 2)
+                        if(header.size() != 2)
                             continue;
-                        else if (regMatch(header[0], "(?i)host"))
+                        else if(regMatch(header[0], "(?i)host"))
                             host = trimQuote(header[1]);
-                        else if (regMatch(header[0], "(?i)edge"))
+                        else if(regMatch(header[0], "(?i)edge"))
                             edge = trimQuote(header[1]);
                     }
                     break;
@@ -2222,19 +2213,19 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
 
             vmessConstruct(node, V2RAY_DEFAULT_GROUP, remarks, server, port, "", id, aead, net, method, path, host, edge, tls, "", std::vector<std::string>{}, udp, tfo, scv, tls13);
             break;
-        case "http"_hash: // http proxy
+        case "http"_hash: //http proxy
             server = trim(configs[1]);
             port = trim(configs[2]);
-            if (port == "0")
+            if(port == "0")
                 continue;
-            for (i = 3; i < configs.size(); i++)
+            for(i = 3; i < configs.size(); i++)
             {
                 vArray = split(configs[i], "=");
-                if (vArray.size() < 2)
+                if(vArray.size() < 2)
                     continue;
                 itemName = trim(vArray[0]);
                 itemVal = trim(vArray[1]);
-                switch (hash_(itemName))
+                switch(hash_(itemName))
                 {
                 case "username"_hash:
                     username = itemVal;
@@ -2254,17 +2245,17 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
         case "trojan"_hash: // surge 4 style trojan proxy
             server = trim(configs[1]);
             port = trim(configs[2]);
-            if (port == "0")
+            if(port == "0")
                 continue;
 
-            for (i = 3; i < configs.size(); i++)
+            for(i = 3; i < configs.size(); i++)
             {
                 vArray = split(configs[i], "=");
-                if (vArray.size() != 2)
+                if(vArray.size() != 2)
                     continue;
                 itemName = trim(vArray[0]);
                 itemVal = trim(vArray[1]);
-                switch (hash_(itemName))
+                switch(hash_(itemName))
                 {
                 case "password"_hash:
                     password = itemVal;
@@ -2295,17 +2286,17 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
         case "snell"_hash:
             server = trim(configs[1]);
             port = trim(configs[2]);
-            if (port == "0")
+            if(port == "0")
                 continue;
 
-            for (i = 3; i < configs.size(); i++)
+            for(i = 3; i < configs.size(); i++)
             {
                 vArray = split(configs[i], "=");
-                if (vArray.size() != 2)
+                if(vArray.size() != 2)
                     continue;
                 itemName = trim(vArray[0]);
                 itemVal = trim(vArray[1]);
-                switch (hash_(itemName))
+                switch(hash_(itemName))
                 {
                 case "psk"_hash:
                     password = itemVal;
@@ -2339,11 +2330,11 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
             for (i = 1; i < configs.size(); i++)
             {
                 vArray = split(trim(configs[i]), "=");
-                if (vArray.size() != 2)
+                if(vArray.size() != 2)
                     continue;
                 itemName = trim(vArray[0]);
                 itemVal = trim(vArray[1]);
-                switch (hash_(itemName))
+                switch(hash_(itemName))
                 {
                 case "section-name"_hash:
                     section = itemVal;
@@ -2353,17 +2344,17 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
                     break;
                 }
             }
-            if (section.empty())
+            if(section.empty())
                 continue;
             ini.get_items("WireGuard " + section, wireguard_config);
-            if (wireguard_config.empty())
+            if(wireguard_config.empty())
                 continue;
 
             for (auto &c : wireguard_config)
             {
                 itemName = trim(c.first);
                 itemVal = trim(c.second);
-                switch (hash_(itemName))
+                switch(hash_(itemName))
                 {
                 case "self-ip"_hash:
                     ip = itemVal;
@@ -2395,22 +2386,22 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
             parsePeers(node, peer);
             break;
         default:
-            switch (hash_(remarks))
+            switch(hash_(remarks))
             {
-            case "shadowsocks"_hash: // quantumult x style ss/ssr link
+            case "shadowsocks"_hash: //quantumult x style ss/ssr link
                 server = trim(configs[0].substr(0, configs[0].rfind(":")));
                 port = trim(configs[0].substr(configs[0].rfind(":") + 1));
-                if (port == "0")
+                if(port == "0")
                     continue;
 
-                for (i = 1; i < configs.size(); i++)
+                for(i = 1; i < configs.size(); i++)
                 {
                     vArray = split(trim(configs[i]), "=");
-                    if (vArray.size() != 2)
+                    if(vArray.size() != 2)
                         continue;
                     itemName = trim(vArray[0]);
                     itemVal = trim(vArray[1]);
-                    switch (hash_(itemName))
+                    switch(hash_(itemName))
                     {
                     case "method"_hash:
                         method = itemVal;
@@ -2429,7 +2420,7 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
                         break;
                     case "obfs"_hash:
                     {
-                        switch (hash_(itemVal))
+                        switch(hash_(itemVal))
                         {
                         case "http"_hash:
                         case "tls"_hash:
@@ -2467,28 +2458,28 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
                         continue;
                     }
                 }
-                if (remarks.empty())
+                if(remarks.empty())
                     remarks = server + ":" + port;
-                switch (hash_(plugin))
+                switch(hash_(plugin))
                 {
                 case "simple-obfs"_hash:
                     pluginopts = "obfs=" + pluginopts_mode;
-                    if (!pluginopts_host.empty())
+                    if(!pluginopts_host.empty())
                         pluginopts += ";obfs-host=" + pluginopts_host;
                     break;
                 case "v2ray-plugin"_hash:
-                    if (pluginopts_host.empty() && !isIPv4(server) && !isIPv6(server))
+                    if(pluginopts_host.empty() && !isIPv4(server) && !isIPv6(server))
                         pluginopts_host = server;
                     pluginopts = "mode=" + pluginopts_mode;
-                    if (!pluginopts_host.empty())
+                    if(!pluginopts_host.empty())
                         pluginopts += ";host=" + pluginopts_host;
-                    if (!path.empty())
+                    if(!path.empty())
                         pluginopts += ";path=" + path;
                     pluginopts += ";" + tls;
                     break;
                 }
 
-                if (!protocol.empty())
+                if(!protocol.empty())
                 {
                     ssrConstruct(node, SSR_DEFAULT_GROUP, remarks, server, port, protocol, method, pluginopts_mode, password, pluginopts_host, protoparam, udp, tfo, scv);
                 }
@@ -2497,21 +2488,21 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
                     ssConstruct(node, SS_DEFAULT_GROUP, remarks, server, port, password, method, plugin, pluginopts, udp, tfo, scv, tls13);
                 }
                 break;
-            case "vmess"_hash: // quantumult x style vmess link
+            case "vmess"_hash: //quantumult x style vmess link
                 server = trim(configs[0].substr(0, configs[0].rfind(":")));
                 port = trim(configs[0].substr(configs[0].rfind(":") + 1));
-                if (port == "0")
+                if(port == "0")
                     continue;
                 net = "tcp";
 
-                for (i = 1; i < configs.size(); i++)
+                for(i = 1; i < configs.size(); i++)
                 {
                     vArray = split(trim(configs[i]), "=");
-                    if (vArray.size() != 2)
+                    if(vArray.size() != 2)
                         continue;
                     itemName = trim(vArray[0]);
                     itemVal = trim(vArray[1]);
-                    switch (hash_(itemName))
+                    switch(hash_(itemName))
                     {
                     case "method"_hash:
                         method = itemVal;
@@ -2523,7 +2514,7 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
                         remarks = itemVal;
                         break;
                     case "obfs"_hash:
-                        switch (hash_(itemVal))
+                        switch(hash_(itemVal))
                         {
                         case "ws"_hash:
                             net = "ws";
@@ -2561,25 +2552,25 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
                         continue;
                     }
                 }
-                if (remarks.empty())
+                if(remarks.empty())
                     remarks = server + ":" + port;
 
                 vmessConstruct(node, V2RAY_DEFAULT_GROUP, remarks, server, port, "", id, aead, net, method, path, host, "", tls, "", std::vector<std::string>{}, udp, tfo, scv, tls13);
                 break;
-            case "trojan"_hash: // quantumult x style trojan link
+            case "trojan"_hash: //quantumult x style trojan link
                 server = trim(configs[0].substr(0, configs[0].rfind(':')));
                 port = trim(configs[0].substr(configs[0].rfind(':') + 1));
-                if (port == "0")
+                if(port == "0")
                     continue;
 
-                for (i = 1; i < configs.size(); i++)
+                for(i = 1; i < configs.size(); i++)
                 {
                     vArray = split(trim(configs[i]), "=");
-                    if (vArray.size() != 2)
+                    if(vArray.size() != 2)
                         continue;
                     itemName = trim(vArray[0]);
                     itemVal = trim(vArray[1]);
-                    switch (hash_(itemName))
+                    switch(hash_(itemName))
                     {
                     case "password"_hash:
                         password = itemVal;
@@ -2613,25 +2604,25 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
                         continue;
                     }
                 }
-                if (remarks.empty())
+                if(remarks.empty())
                     remarks = server + ":" + port;
 
                 trojanConstruct(node, TROJAN_DEFAULT_GROUP, remarks, server, port, password, "", host, "", fp, sni, std::vector<std::string>{}, tls == "true", udp, tfo, scv, tls13);
                 break;
-            case "http"_hash: // quantumult x style http links
+            case "http"_hash: //quantumult x style http links
                 server = trim(configs[0].substr(0, configs[0].rfind(':')));
                 port = trim(configs[0].substr(configs[0].rfind(':') + 1));
-                if (port == "0")
+                if(port == "0")
                     continue;
 
-                for (i = 1; i < configs.size(); i++)
+                for(i = 1; i < configs.size(); i++)
                 {
                     vArray = split(trim(configs[i]), "=");
-                    if (vArray.size() != 2)
+                    if(vArray.size() != 2)
                         continue;
                     itemName = trim(vArray[0]);
                     itemVal = trim(vArray[1]);
-                    switch (hash_(itemName))
+                    switch(hash_(itemName))
                     {
                     case "username"_hash:
                         username = itemVal;
@@ -2658,12 +2649,12 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
                         continue;
                     }
                 }
-                if (remarks.empty())
+                if(remarks.empty())
                     remarks = server + ":" + port;
 
-                if (username == "none")
+                if(username == "none")
                     username.clear();
-                if (password == "none")
+                if(password == "none")
                     password.clear();
 
                 httpConstruct(node, HTTP_DEFAULT_GROUP, remarks, server, port, username, password, tls == "true", tfo, scv, tls13);
@@ -2682,7 +2673,7 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
                         continue;
                     itemName = trim(vArray[0]);
                     itemVal = trim(vArray[1]);
-                    switch (hash_(itemName))
+                    switch(hash_(itemName))
                     {
                     case "method"_hash:
                         method = itemVal;
@@ -2694,7 +2685,7 @@ bool explodeSurge(std::string surge, std::vector<Proxy> &nodes)
                         remarks = itemVal;
                         break;
                     case "obfs"_hash:
-                        switch (hash_(itemVal))
+                        switch(hash_(itemVal))
                         {
                         case "ws"_hash:
                             net = "ws";
@@ -2759,39 +2750,39 @@ void explodeSSTap(std::string sstap, std::vector<Proxy> &nodes)
     Document json;
     uint32_t index = nodes.size();
     json.Parse(sstap.data());
-    if (json.HasParseError() || !json.IsObject())
+    if(json.HasParseError() || !json.IsObject())
         return;
 
-    for (uint32_t i = 0; i < json["configs"].Size(); i++)
+    for(uint32_t i = 0; i < json["configs"].Size(); i++)
     {
         Proxy node;
         json["configs"][i]["group"] >> group;
         json["configs"][i]["remarks"] >> remarks;
         json["configs"][i]["server"] >> server;
         port = GetMember(json["configs"][i], "server_port");
-        if (port == "0")
+        if(port == "0")
             continue;
 
-        if (remarks.empty())
+        if(remarks.empty())
             remarks = server + ":" + port;
 
         json["configs"][i]["password"] >> pass;
         json["configs"][i]["type"] >> configType;
-        switch (to_int(configType, 0))
+        switch(to_int(configType, 0))
         {
-        case 5: // socks 5
+        case 5: //socks 5
             json["configs"][i]["username"] >> user;
             socksConstruct(node, group, remarks, server, port, user, pass);
             break;
-        case 6: // ss/ssr
+        case 6: //ss/ssr
             json["configs"][i]["protocol"] >> protocol;
             json["configs"][i]["obfs"] >> obfs;
             json["configs"][i]["method"] >> cipher;
-            if (find(ss_ciphers.begin(), ss_ciphers.end(), cipher) != ss_ciphers.end() && protocol == "origin" && obfs == "plain") // is ss
+            if(find(ss_ciphers.begin(), ss_ciphers.end(), cipher) != ss_ciphers.end() && protocol == "origin" && obfs == "plain") //is ss
             {
                 ssConstruct(node, group, remarks, server, port, pass, cipher, "", "");
             }
-            else // is ssr cipher
+            else //is ssr cipher
             {
                 json["configs"][i]["obfsparam"] >> obfsparam;
                 json["configs"][i]["protocolparam"] >> protoparam;
@@ -2814,13 +2805,13 @@ void explodeNetchConf(std::string netch, std::vector<Proxy> &nodes)
     uint32_t index = nodes.size();
 
     json.Parse(netch.data());
-    if (json.HasParseError() || !json.IsObject())
+    if(json.HasParseError() || !json.IsObject())
         return;
 
-    if (!json.HasMember("Server"))
+    if(!json.HasMember("Server"))
         return;
 
-    for (uint32_t i = 0; i < json["Server"].Size(); i++)
+    for(uint32_t i = 0; i < json["Server"].Size(); i++)
     {
         Proxy node;
         explodeNetch("Netch://" + base64Encode(json["Server"][i] | SerializeObject()), node);
@@ -2835,22 +2826,22 @@ int explodeConfContent(const std::string &content, std::vector<Proxy> &nodes)
 {
     ConfType filetype = ConfType::Unknow;
 
-    if (strFind(content, "\"version\""))
+    if(strFind(content, "\"version\""))
         filetype = ConfType::SS;
-    else if (strFind(content, "\"serverSubscribes\""))
+    else if(strFind(content, "\"serverSubscribes\""))
         filetype = ConfType::SSR;
-    else if (strFind(content, "\"uiItem\"") || strFind(content, "vnext"))
+    else if(strFind(content, "\"uiItem\"") || strFind(content, "vnext"))
         filetype = ConfType::V2Ray;
-    else if (strFind(content, "\"proxy_apps\""))
+    else if(strFind(content, "\"proxy_apps\""))
         filetype = ConfType::SSConf;
-    else if (strFind(content, "\"idInUse\""))
+    else if(strFind(content, "\"idInUse\""))
         filetype = ConfType::SSTap;
-    else if (strFind(content, "\"local_address\"") && strFind(content, "\"local_port\""))
-        filetype = ConfType::SSR; // use ssr config parser
-    else if (strFind(content, "\"ModeFileNameType\""))
+    else if(strFind(content, "\"local_address\"") && strFind(content, "\"local_port\""))
+        filetype = ConfType::SSR; //use ssr config parser
+    else if(strFind(content, "\"ModeFileNameType\""))
         filetype = ConfType::Netch;
 
-    switch (filetype)
+    switch(filetype)
     {
     case ConfType::SS:
         explodeSSConf(content, nodes);
@@ -2871,7 +2862,7 @@ int explodeConfContent(const std::string &content, std::vector<Proxy> &nodes)
         explodeNetchConf(content, nodes);
         break;
     default:
-        // try to parse as a local subscription
+        //try to parse as a local subscription
         explodeSub(content, nodes);
     }
 
@@ -2880,29 +2871,29 @@ int explodeConfContent(const std::string &content, std::vector<Proxy> &nodes)
 
 void explode(const std::string &link, Proxy &node)
 {
-    if (startsWith(link, "ssr://"))
+    if(startsWith(link, "ssr://"))
         explodeSSR(link, node);
-    else if (startsWith(link, "vmess://") || startsWith(link, "vmess1://"))
+    else if(startsWith(link, "vmess://") || startsWith(link, "vmess1://"))
         explodeVmess(link, node);
-    else if (startsWith(link, "ss://"))
+    else if(startsWith(link, "ss://"))
         explodeSS(link, node);
-    else if (startsWith(link, "socks://") || startsWith(link, "https://t.me/socks") || startsWith(link, "tg://socks"))
+    else if(startsWith(link, "socks://") || startsWith(link, "https://t.me/socks") || startsWith(link, "tg://socks"))
         explodeSocks(link, node);
-    else if (startsWith(link, "https://t.me/http") || startsWith(link, "tg://http")) // telegram style http link
+    else if(startsWith(link, "https://t.me/http") || startsWith(link, "tg://http")) //telegram style http link
         explodeHTTP(link, node);
-    else if (startsWith(link, "Netch://"))
+    else if(startsWith(link, "Netch://"))
         explodeNetch(link, node);
-    else if (startsWith(link, "trojan://") || startsWith(link, "trojan-go://"))
+    else if(startsWith(link, "trojan://") || startsWith(link, "trojan-go://"))
         explodeTrojan(link, node);
-    else if (startsWith(link, "vless://") || startsWith(link, "vless1://"))
-        explodeVless(link, node);
-    else if (startsWith(link, "hysteria://"))
+    else if(startsWith(link, "hysteria://"))
         explodeHysteria(link, node);
-    else if (startsWith(link, "hysteria2://") || startsWith(link, "hy2://"))
+    else if(startsWith(link, "hysteria2://") || startsWith(link, "hy2://"))
         explodeHysteria2(link, node);
-    else if (startsWith(link, "tuic://"))
+    else if(startsWith(link, "vless://") || startsWith(link, "vless1://"))
+        explodeVless(link, node);
+    else if(startsWith(link, "tuic://"))
         explodeTUIC(link, node);
-    else if (isLink(link))
+    else if(isLink(link))
         explodeHTTPSub(link, node);
 }
 
@@ -2912,21 +2903,21 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes)
     std::string strLink;
     bool processed = false;
 
-    // try to parse as SSD configuration
-    if (startsWith(sub, "ssd://"))
+    //try to parse as SSD configuration
+    if(startsWith(sub, "ssd://"))
     {
         explodeSSD(sub, nodes);
         processed = true;
     }
 
-    // try to parse as clash configuration
+    //try to parse as clash configuration
     try
     {
-        if (!processed && regFind(sub, "\"?(Proxy|proxies)\"?:"))
+        if(!processed && regFind(sub, "\"?(Proxy|proxies)\"?:"))
         {
             regGetMatch(sub, R"(^(?:Proxy|proxies):$\s(?:(?:^ +?.*$| *?-.*$|)\s?)+)", 1, &sub);
             Node yamlnode = Load(sub);
-            if (yamlnode.size() && (yamlnode["Proxy"].IsDefined() || yamlnode["proxies"].IsDefined()))
+            if(yamlnode.size() && (yamlnode["Proxy"].IsDefined() || yamlnode["proxies"].IsDefined()))
             {
                 explodeClash(yamlnode, nodes);
                 processed = true;
@@ -2935,35 +2926,35 @@ void explodeSub(std::string sub, std::vector<Proxy> &nodes)
     }
     catch (std::exception &e)
     {
-        // writeLog(0, e.what(), LOG_LEVEL_DEBUG);
-        // ignore
+        //writeLog(0, e.what(), LOG_LEVEL_DEBUG);
+        //ignore
         throw;
     }
 
-    // try to parse as surge configuration
-    if (!processed && explodeSurge(sub, nodes))
+    //try to parse as surge configuration
+    if(!processed && explodeSurge(sub, nodes))
     {
         processed = true;
     }
 
-    // try to parse as normal subscription
-    if (!processed)
+    //try to parse as normal subscription
+    if(!processed)
     {
         sub = urlSafeBase64Decode(sub);
-        if (regFind(sub, "(vmess|shadowsocks|http|trojan)\\s*?="))
+        if(regFind(sub, "(vmess|shadowsocks|http|trojan)\\s*?="))
         {
-            if (explodeSurge(sub, nodes))
+            if(explodeSurge(sub, nodes))
                 return;
         }
         strstream << sub;
         char delimiter = count(sub.begin(), sub.end(), '\n') < 1 ? count(sub.begin(), sub.end(), '\r') < 1 ? ' ' : '\r' : '\n';
-        while (getline(strstream, strLink, delimiter))
+        while(getline(strstream, strLink, delimiter))
         {
             Proxy node;
-            if (strLink.rfind('\r') != std::string::npos)
+            if(strLink.rfind('\r') != std::string::npos)
                 strLink.erase(strLink.size() - 1);
             explode(strLink, node);
-            if (strLink.empty() || node.Type == ProxyType::Unknown)
+            if(strLink.empty() || node.Type == ProxyType::Unknown)
             {
                 continue;
             }

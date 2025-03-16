@@ -44,8 +44,8 @@ struct extra_settings
     bool authorized = false;
 
     extra_settings() = default;
-    extra_settings(const extra_settings &) = delete;
-    extra_settings(extra_settings &&) = delete;
+    extra_settings(const extra_settings&) = delete;
+    extra_settings(extra_settings&&) = delete;
 
 #ifndef NO_JS_RUNTIME
     qjs::Runtime *js_runtime = nullptr;

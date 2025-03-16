@@ -21,15 +21,15 @@ enum class ProxyType
     HTTPS,
     SOCKS5,
     WireGuard,
-    VLESS,
     Hysteria,
     Hysteria2,
+    VLESS,
     TUIC
 };
 
 inline String getProxyTypeName(ProxyType type)
 {
-    switch (type)
+    switch(type)
     {
     case ProxyType::Shadowsocks:
         return "SS";
@@ -49,12 +49,12 @@ inline String getProxyTypeName(ProxyType type)
         return "SOCKS5";
     case ProxyType::WireGuard:
         return "WireGuard";
-    case ProxyType::VLESS:
-        return "Vless";
     case ProxyType::Hysteria:
         return "Hysteria";
     case ProxyType::Hysteria2:
         return "Hysteria2";
+    case ProxyType::VLESS:
+        return "Vless";
     case ProxyType::TUIC:
         return "TUIC";
     default:
@@ -116,7 +116,7 @@ struct Proxy
     String TestUrl;
     String ClientId;
 
-    String Fingerprint;
+    String Insecure;
     String GRPCServiceName;
     String GRPCMode;
     String ShortId;
@@ -133,7 +133,7 @@ struct Proxy
     String Auth;
     String AuthStr;
     String SNI;
-    String Insecure;
+    String Fingerprint;
     String Ca;
     String CaStr;
     String Alpn;
@@ -166,9 +166,9 @@ struct Proxy
 #define TROJAN_DEFAULT_GROUP "TrojanProvider"
 #define SNELL_DEFAULT_GROUP "SnellProvider"
 #define WG_DEFAULT_GROUP "WireGuardProvider"
-#define XRAY_DEFAULT_GROUP "XRayProvider"
 #define HYSTERIA_DEFAULT_GROUP "HysteriaProvider"
 #define HYSTERIA2_DEFAULT_GROUP "Hysteria2Provider"
+#define XRAY_DEFAULT_GROUP "XRayProvider"
 #define TUIC_DEFAULT_GROUP "TUICProvider"
 
 #endif // PROXY_H_INCLUDED

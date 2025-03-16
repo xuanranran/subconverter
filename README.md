@@ -2,14 +2,14 @@
 
 Utility to convert between various proxy subscription formats.
 
-[![Build Status](https://github.com/LM-Firefly/subconverter/actions/workflows/build.yml/badge.svg)](https://github.com/LM-Firefly/subconverter/actions)
-[![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/LM-Firefly/subconverter.svg)](https://github.com/LM-Firefly/subconverter/tags)
-[![GitHub release](https://img.shields.io/github/release/LM-Firefly/subconverter.svg)](https://github.com/LM-Firefly/subconverter/releases)
-[![GitHub license](https://img.shields.io/github/license/LM-Firefly/subconverter.svg)](https://github.com/LM-Firefly/subconverter/blob/master/LICENSE)
+[![Build Status](https://github.com/xuanranran/subconverter/actions/workflows/build.yml/badge.svg)](https://github.com/xuanranran/subconverter/actions)
+[![GitHub tag (latest SemVer)](https://img.shields.io/github/tag/xuanranran/subconverter.svg)](https://github.com/xuanranran/subconverter/tags)
+[![GitHub release](https://img.shields.io/github/release/xuanranran/subconverter.svg)](https://github.com/xuanranran/subconverter/releases)
+[![GitHub license](https://img.shields.io/github/license/xuanranran/subconverter.svg)](https://github.com/xuanranran/subconverter/blob/main/LICENSE)
 
-[Docker README](https://github.com/LM-Firefly/subconverter/blob/master/README-docker.md)
+[Docker README](https://github.com/xuanranran/subconverter/blob/main/README-docker.md)
 
-[中文文档](https://github.com/LM-Firefly/subconverter/blob/master/README-cn.md)
+[中文文档](https://github.com/xuanranran/subconverter/blob/main/README-cn.md)
 
 - [subconverter](#subconverter)
   - [Supported Types](#supported-types)
@@ -47,7 +47,7 @@ Notice:
 
    - tg://http?server=1.2.3.4&port=233&user=user&pass=pass&remark=Example
 
-   - https://t.me/http?server=1.2.3.4&port=233&user=user&pass=pass&remark=Example
+   - <https://t.me/http?server=1.2.3.4&port=233&user=user&pass=pass&remark=Example>
 
 ---
 
@@ -94,7 +94,7 @@ Finally subscribe this link in Clash and you are done!
 
 ## Advanced Usage
 
-Please refer to [中文文档](https://github.com/LM-Firefly/subconverter/blob/master/README-cn.md#%E8%BF%9B%E9%98%B6%E7%94%A8%E6%B3%95).
+Please refer to [中文文档](https://github.com/xuanranran/subconverter/blob/main/README-cn.md#%E8%BF%9B%E9%98%B6%E7%94%A8%E6%B3%95).
 
 ## Auto Upload
 

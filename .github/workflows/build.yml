@@ -20,7 +20,6 @@ jobs:
     env:
       GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
     outputs:
-      changed: ${{steps.build_changelog.outputs.changelog}}
       ver: ${{ steps.set-ver.outputs.version }}
     steps:
       - name: Setup timezone
@@ -34,83 +33,6 @@ jobs:
       - id: set-ver
         run: |
           echo "version=$(date +%y.%m%d.%H%M-)$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-      - name: Build CHANGELOG
-        id: build_changelog
-        uses: mikepenz/release-changelog-builder-action@v5
-        with:
-          configurationJson: |
-            {
-                "categories": [
-                    {
-                        "title": "## 🚀 Features",
-                        "labels": [
-                            "feature"
-                        ],
-                        "empty_content": "No Features, No Bug 🎉 🎉 🎉 "
-                    },
-                    {
-                        "title": "## 🐛 Fixes",
-                        "labels": [
-                            "fix"
-                        ]
-                    },
-                    {
-                        "title": "## 📦 sub-web",
-                        "labels": ["sub-web"]
-                    }
-                ],
-                "ignore_labels": [
-                    "ignore"
-                ],
-                "sort": {
-                    "order": "ASC",
-                    "on_property": "mergedAt"
-                },
-                "template": "## *** 📜 CHANGELOG 📜 ***\n\n### #{{CHANGELOG}}\n\n## <details><summary>Uncategorized</summary>- #{{UNCATEGORIZED}}</details>",
-                "pr_template": "- 🔨 #{{TITLE}}\n   - PR: ##{{NUMBER}}",
-                "empty_template": "## *** 📜 CHANGELOG 📜 ***\n\n###  💫 Just have fun, nothing has changed. \n### 📝 Check the Full Changelog for more information. ${{steps.build_changelog.outputs.changes}}",
-                "label_extractor": [
-                    {
-                        "pattern": "(.) (.+)",
-                        "target": "$1",
-                        "flags": "gu"
-                    },
-                    {
-                        "pattern": "\\[Issue\\]",
-                        "on_property": "title",
-                        "method": "match"
-                    }
-                ],
-                "duplicate_filter": {
-                    "pattern": "\\[ABC-....\\]",
-                    "on_property": "title",
-                    "method": "match"
-                },
-                "transformers": [
-                    {
-                        "pattern": "[\\-\\*] (\\[(...|TEST|CI|SKIP)\\])( )?(.+?)\n(.+?[\\-\\*] )(.+)",
-                        "target": "- $4\n  - $6"
-                    }
-                ],
-                "trim_values": false,
-                "max_tags_to_fetch": 200,
-                "max_pull_requests": 200,
-                "max_back_track_time_days": 180
-            }
-          ignorePreReleases: false
-          owner: xuanranran
-          repo: subconverter
-          outputFile: CHANGELOG.md
-          token: ${{ env.GIT_TOKEN }}
-      - name: Commit CHANGELOG
-        uses: EndBug/add-and-commit@v9.1.4
-        with:
-          author_email: mail@example.com
-          default_author: github_actions
-          message: "Updated CHANGELOG.md. Check what's happened. 🎉 "
-          add: '-A'
-        env:
-          token: ${{env.GIT_TOKEN}}
 
   linux_build:
     needs: prepare
@@ -118,23 +40,22 @@ jobs:
       matrix:
         include:
           - arch: x86
-            artifact: subconverter_linux32
+            artifact: subconverter_linux_x86
             os: ubuntu-24.04
           - arch: amd64
-            artifact: subconverter_linux64
+            artifact: subconverter_linux_amd64
             os: ubuntu-24.04
           - arch: armv7
-            artifact: subconverter_armv7
+            artifact: subconverter_linux_armv7
             os: ubuntu-24.04
           - arch: aarch64
-            artifact: subconverter_aarch64
+            artifact: subconverter_linux_aarch64
             os: ubuntu-24.04
           - arch: armhf
-            artifact: subconverter_armhf
+            artifact: subconverter_linux_armhf
             os: ubuntu-24.04
     runs-on: ${{ matrix.os }}
     env:
-      CHANGE: ${{ needs.prepare.outputs.changed }}
       GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
       VERSION: ${{ needs.prepare.outputs.ver }}
     name: Linux ${{ matrix.arch }} Build
@@ -151,9 +72,9 @@ jobs:
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         run: sed -i 's/\(v[0-9]\.[0-9]\.[0-9]\)/\1 '"${{env.VERSION}}"'/' src/version.h
       - name: Build
-        run: docker run --rm -v $GITHUB_WORKSPACE:/root/workdir multiarch/alpine:${{ matrix.arch }}-latest-stable /bin/sh -c "apk add bash git nodejs npm && cd /root/workdir && chmod +x scripts/build.alpine.release.sh && bash scripts/build.alpine.release.sh"
+        run: docker run --rm -v $GITHUB_WORKSPACE:/root/workdir multiarch/alpine:${{ matrix.arch }}-edge /bin/sh -c "apk add bash git nodejs npm && cd /root/workdir && chmod +x scripts/build.alpine.release.sh && bash scripts/build.alpine.release.sh"
       - name: Upload
-        uses: actions/upload-artifact@v4.4.3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}.${{ env.VERSION }}
           path: subconverter/
@@ -162,7 +83,7 @@ jobs:
         run: tar czf ${{ matrix.artifact }}.${{ env.VERSION }}.tar.gz subconverter
       - name: Prepare Release
         #      if: ${{ github.event_name != 'pull_request' && startsWith(github.ref, 'refs/tags/') }}
-        uses: softprops/action-gh-release@v2.1.0
+        uses: softprops/action-gh-release@v2
         with:
           name: Sub+SimpleWeb.${{ env.VERSION }}
           tag_name: ${{ env.VERSION }}
@@ -184,7 +105,6 @@ jobs:
             os: macos-14
     runs-on: ${{ matrix.os }}
     env:
-      CHANGE: ${{ needs.prepare.outputs.changed }}
       GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
       VERSION: ${{ needs.prepare.outputs.ver }}
     name: macOS ${{ matrix.arch }} Build
@@ -194,7 +114,7 @@ jobs:
         with:
           timezoneLinux: 'Asia/Shanghai'
       - name: Checkout base
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v4
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -205,7 +125,7 @@ jobs:
       - name: Build
         run: bash scripts/build.macos.release.sh
       - name: Upload
-        uses: actions/upload-artifact@v4.4.3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}.${{ env.VERSION }}
           path: subconverter/
@@ -214,7 +134,7 @@ jobs:
         run: tar czf ${{ matrix.artifact }}.${{ env.VERSION }}.tar.gz subconverter
       - name: Prepare Release
         #      if: ${{ github.event_name != 'pull_request' && startsWith(github.ref, 'refs/tags/') }}
-        uses: softprops/action-gh-release@v2.1.0
+        uses: softprops/action-gh-release@v2
         with:
           name: Sub+SimpleWeb.${{ env.VERSION }}
           tag_name: ${{ env.VERSION }}
@@ -229,16 +149,15 @@ jobs:
       matrix:
         include:
           - arch: x86
-            artifact: subconverter_win32
+            artifact: subconverter_win_x86
             env: i686
             msystem: MINGW32
           - arch: amd64
-            artifact: subconverter_win64
+            artifact: subconverter_win_amd64
             env: x86_64
             msystem: MINGW64
     runs-on: windows-latest
     env:
-      CHANGE: ${{ needs.prepare.outputs.changed }}
       GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
       VERSION: ${{ needs.prepare.outputs.ver }}
     name: Windows ${{ matrix.arch }} Build
@@ -251,13 +170,13 @@ jobs:
         with:
           timezoneWindows: 'Asia/Shanghai'
       - name: Checkout base
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v4
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - name: Setup Node.js
-        uses: actions/setup-node@v4.1.0
+        uses: actions/setup-node@v4
         with:
           node-version: '16'
       - name: Setup MSYS2
@@ -273,7 +192,7 @@ jobs:
       - name: Build
         run: bash scripts/build.windows.release.sh
       - name: Upload
-        uses: actions/upload-artifact@v4.4.3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}.${{ env.VERSION }}
           path: subconverter/
@@ -282,7 +201,7 @@ jobs:
         run: 7z a ${{ matrix.artifact }}.${{ env.VERSION }}.7z subconverter/
       - name: Prepare Release
         #      if: ${{ github.event_name != 'pull_request' && startsWith(github.ref, 'refs/tags/') }}
-        uses: softprops/action-gh-release@v2.1.0
+        uses: softprops/action-gh-release@v2
         with:
           name: Sub+SimpleWeb.${{ env.VERSION }}
           tag_name: ${{ env.VERSION }}
@@ -293,27 +212,27 @@ jobs:
 
   prerelease:
     name: Publish build
-    needs: prepare
+    needs:
+      - prepare
+      - linux_build
+      - macos_build
+      - windows_build
     runs-on: ubuntu-24.04
     env:
-      CHANGE: ${{ needs.prepare.outputs.changed }}
       GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
       VERSION: ${{ needs.prepare.outputs.ver }}
     steps:
-      - uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{env.GIT_TOKEN}}
       - name: Complete Publish Release
-        uses: softprops/action-gh-release@v2.1.0
+        uses: softprops/action-gh-release@v2
         with:
-          append_body: true
-          body: ${{ env.CHANGE }}
-          #          body_path: CHANGELOG.md
           generate_release_notes: true
+          append_body: true
           name: Sub+SimpleWeb.${{ env.VERSION }}
           tag_name: ${{ env.VERSION }}
           token: ${{env.GIT_TOKEN}}
           draft: false
           prerelease: false
-          files: CHANGELOG.md
