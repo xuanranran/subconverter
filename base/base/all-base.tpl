@@ -1,5 +1,5 @@
 {% if request.target == "clash" or request.target == "clashr" %}
-mixed-port: {{ default(global.clash.mixed_port, "18888") }}
+mixed-port: {{ default(global.clash.mixed_port, "7893") }}
 #redir-port: {{ default(global.clash.redir_port, "18890") }}
 #authentication:
 #  - "firefly:WJ960923"
@@ -7,12 +7,12 @@ allow-lan: {{ default(global.clash.allow_lan, "true") }}
 bind-address: '*'
 mode: rule
 log-level: {{ default(global.clash.log_level, "info") }}
-external-controller: {{ default(global.clash.api_port, "0.0.0.0:19090")}}
-external-ui: /ui/xd/
-#external-ui-name: xd
-external-ui-url: "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
+external-controller: {{ default(global.clash.api_port, "0.0.0.0:9090")}}
+external-ui: /ui/
+#external-ui-name: zashboard
+external-ui-url: "https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip"
 secret: ''
-routing-mark: {{ default(global.clash.routing_mark, "16666")}}
+routing-mark: {{ default(global.clash.routing_mark, "6666")}}
 experimental:
   ignore-resolve-fail: true
   sniff-tls-sni: true
@@ -85,17 +85,22 @@ dns:
 {% else %}
 ipv6: true
 #interface-name: WLAN
+hosts:
+  mtalk.google.com: 108.177.125.188
+  raw.githubusercontent.com: 185.199.108.133
+  objects.githubusercontent.com: 185.199.110.133
+
 dns:
   enable: true
+  prefer-h3: true
   listen: 0.0.0.0:1053
   ipv6: true
 {% endif %}
   default-nameserver:
+    - 114.114.114.144
     - 223.5.5.5
-    - 119.29.29.29
-    - 1.1.1.1
   enhanced-mode: fake-ip # or redir-host (not recommended)
-  fake-ip-range: 22.0.0.0/8
+  fake-ip-range: 198.18.0.1/16
   fake-ip-filter:
     # === LAN ===
     - '*.example'
@@ -151,6 +156,8 @@ dns:
     - 'Mijia Cloud'
     - '+.mijia.tech'
   fake-ip-filter-mode: blacklist
+  use-hosts: true
+  respect-rules: false
   nameserver:
     - 223.5.5.5
     - 119.29.29.29
