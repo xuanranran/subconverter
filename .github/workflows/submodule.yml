@@ -48,7 +48,7 @@ jobs:
         run: |
           sudo rm -rf sub-web
           sudo rm -rf base/sub-web
-          git clone https://github.com/xuanranran/sub-web.git sub-web
+          git clone https://github.com/xuanranran/subweb.git sub-web
       - name: Update Rules
         id: rule
         run: |
