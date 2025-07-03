@@ -1,13 +1,13 @@
 name: Update submodule
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - '**'
-      - '!.github/**'
-      - '!base/sub-web/**'
+  # push:
+    # branches:
+      # - main
+    # paths:
+      # - '**'
+      # - '!.github/**'
+      # - '!base/sub-web/**'
   workflow_dispatch:
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -31,11 +31,24 @@ jobs:
         with:
           submodules: 'true'
           token: ${{env.GIT_TOKEN}}
+      - name: Delete workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+            retain_days: 0
+            keep_minimum_runs: 1
+      - name: Remove old Releases
+        uses: dev-drprasad/delete-older-releases@v0.3.4
+        if: env.UPLOAD_RELEASE == 'true' && !cancelled()
+        with:
+            keep_latest: 1
+            delete_tags: true
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Update sub-web
         run: |
           sudo rm -rf sub-web
           sudo rm -rf base/sub-web
-          git clone https://github.com/LM-Firefly/sub-web.git
+          git clone https://github.com/xuanranran/subweb.git sub-web
       - name: Update Rules
         id: rule
         run: |
@@ -56,8 +69,8 @@ jobs:
       - name: Get dependencies and build
         run: |
           cd sub-web
-          npm install
-          npm run build
+          yarn install
+          yarn build
       - name: Clean up
         run: |
           cd $GITHUB_WORKSPACE

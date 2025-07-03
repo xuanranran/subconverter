@@ -1,12 +1,14 @@
 name: Publish GitHub Releases
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "**"
-      - "!.github/**"
+  # push:
+    # branches:
+      # - main
+    # paths:
+      # - '**'
+      # - '!.github/**'
+      # - '!CHANGELOG.md'
+      # - '!sub-web/**'
   workflow_dispatch:
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}

@@ -160,28 +160,28 @@ match = "(..|...)(\\d\\d\\d\\d|\\d\\d\\d)(\\|)(Azure|HKT|CN2GIA)"
 replace = "$1$4$2"
 
 [[node_pref.rename_node]]
-match = "((^CordCloud - )|(关注TG@txwl666)|(一元机场:ssrsub.de)|(机场推荐:dafei.de))"
+match = "^CordCloud - "
 replace = ""
 
 [[node_pref.rename_node]]
 match = "(标准)|(标准线路)|(线路)|(中转)|(直连)|(80端口)|(V\\d-)|(IEPL专线 )|(IPV6)|((海外\\|新疆专用))|((\u6d77\u5916\\|\u65b0\u7586\u4e13\u7528))"
 replace = ""
 
-[[node_pref.rename_node]]
-match = "(.*)( )(.*\\d)( \\| )(.*)"
-replace = "$1$3$5"
+# [[node_pref.rename_node]]
+# match = "(.*)( )(.*\\d)( \\| )(.*)"
+# replace = "$1$3$5"
 
-[[node_pref.rename_node]]
-match = "(.*)(\\b\\d.*\\d\\b)(静态解锁|动态解锁|原生解锁|解锁|动态原生|静态原生|原生)"
-replace = "$1$2[M]"
+# [[node_pref.rename_node]]
+# match = "(.*)(\\b\\d.*\\d\\b)(静态解锁|动态解锁|原生解锁|解锁|动态原生|静态原生|原生)"
+# replace = "$1$2[M]"
 
-[[node_pref.rename_node]]
-match = "(.*)(\\d.*\\d)(\\|[\\w].*\\d)"
-replace = "$1$2"
+# [[node_pref.rename_node]]
+# match = "(.*)(\\d.*\\d)(\\|[\\w].*\\d)"
+# replace = "$1$2"
 
-[[node_pref.rename_node]]
-match = "(.*)(NO)(.?\\d?\\d?\\d)$"
-replace = "$1 $3"
+# [[node_pref.rename_node]]
+# match = "(.*)(NO)(.?\\d?\\d?\\d)$"
+# replace = "$1 $3"
 
 # [[node_pref.rename_node]]
 # match = "(「|\u300c)(\\p{RI}\\p{RI})(」|\u300d)"
@@ -195,77 +195,77 @@ replace = ""
 match = "(商宽)|(\\d组)|(--)|(◆)"
 replace = ""
 
-[[node_pref.rename_node]]
-match = "^(.*)(?i:\\bHK[G]?\\d*\\b|Hong.*?Kong|\\bHKT\\d*\\b|\\bHKBN\\d*\\b|\\bHGC\\d*\\b|\\bWTT\\d*\\b|\\bCMI\\d*\\b|\\bHK\\d*\\b)([\u4e00-\u9fa5].*|\\d*)"
-replace = "香港 $2"
+# [[node_pref.rename_node]]
+# match = "^(.*)(?i:\\bHK[G]?\\d*\\b|Hong.*?Kong|\\bHKT\\d*\\b|\\bHKBN\\d*\\b|\\bHGC\\d*\\b|\\bWTT\\d*\\b|\\bCMI\\d*\\b|\\bHK\\d*\\b)([\u4e00-\u9fa5].*|\\d*)"
+# replace = "香港 $2"
 
-[[node_pref.rename_node]]
-match = "^((「|\u300c)(🇭🇰)(」|\u300d))(.*)"
-replace = "香港 $5"
+# [[node_pref.rename_node]]
+# match = "^((「|\u300c)(🇭🇰)(」|\u300d))(.*)"
+# replace = "香港 $5"
 
-[[node_pref.rename_node]]
-match = "^((?i:\\bUS[A]?\\d*\\b)|((「|\u300c)(🇺🇸)(」|\u300d)))(.*)"
-replace = "美国 $6"
+# [[node_pref.rename_node]]
+# match = "^((?i:\\bUS[A]?\\d*\\b)|((「|\u300c)(🇺🇸)(」|\u300d)))(.*)"
+# replace = "美国 $6"
 
-[[node_pref.rename_node]]
-match = "^((?i:\\bJP[N]?\\d*\\b)|((「|\u300c)(🇯🇵)(」|\u300d)))(.*)"
-replace = "日本 $6"
+# [[node_pref.rename_node]]
+# match = "^((?i:\\bJP[N]?\\d*\\b)|((「|\u300c)(🇯🇵)(」|\u300d)))(.*)"
+# replace = "日本 $6"
 
-[[node_pref.rename_node]]
-match = "^((?i:\\bTW[N]?\\d*\\b)|((「|\u300c)(🇹🇼)(」|\u300d)))(.*)"
-replace = "台湾 $6"
+# [[node_pref.rename_node]]
+# match = "^((?i:\\bTW[N]?\\d*\\b)|((「|\u300c)(🇹🇼)(」|\u300d)))(.*)"
+# replace = "台湾 $6"
 
-[[node_pref.rename_node]]
-match = "^((?i:\\bMO\\d*\\b)|((「|\u300c)(🇲🇴)(」|\u300d)))(.*)"
-replace = "澳门 $6"
+# [[node_pref.rename_node]]
+# match = "^((?i:\\bMO\\d*\\b)|((「|\u300c)(🇲🇴)(」|\u300d)))(.*)"
+# replace = "澳门 $6"
 
-[[node_pref.rename_node]]
-match = "^((?i:\\bSG[P]?\\d*\\b)|((「|\u300c)(🇸🇬)(」|\u300d)))(.*)"
-replace = "新加坡 $6"
+# [[node_pref.rename_node]]
+# match = "^((?i:\\bSG[P]?\\d*\\b)|((「|\u300c)(🇸🇬)(」|\u300d)))(.*)"
+# replace = "新加坡 $6"
 
-[[node_pref.rename_node]]
-match = "^(?i:\\bRU[S]?\\d*\\b)(.*)"
-replace = "俄罗斯 $2"
+# [[node_pref.rename_node]]
+# match = "^(?i:\\bRU[S]?\\d*\\b)(.*)"
+# replace = "俄罗斯 $2"
 
-[[node_pref.rename_node]]
-match = "^(\\bT[U]R\\b)(.*)"
-replace = "土耳其 $2"
+# [[node_pref.rename_node]]
+# match = "^(\\bT[U]R\\b)(.*)"
+# replace = "土耳其 $2"
 
-[[node_pref.rename_node]]
-match = "^((?i:\\bUK\\d*\\b|\\bGB[R]?\\d*\\b)|((「|\u300c)(🇬🇧)(」|\u300d)))(.*)"
-replace = "英国 $6"
+# [[node_pref.rename_node]]
+# match = "^((?i:\\bUK\\d*\\b|\\bGB[R]?\\d*\\b)|((「|\u300c)(🇬🇧)(」|\u300d)))(.*)"
+# replace = "英国 $6"
 
-[[node_pref.rename_node]]
-match = "^((?i:(?<!North\\s)(\\bK[O]?R\\d*\\b))|((「|\u300c)(🇰🇷)(」|\u300d)))(.*)"
-replace = "韩国 $7"
+# [[node_pref.rename_node]]
+# match = "^((?i:(?<!North\\s)(\\bK[O]?R\\d*\\b))|((「|\u300c)(🇰🇷)(」|\u300d)))(.*)"
+# replace = "韩国 $7"
 
-[[node_pref.rename_node]]
-match = "^((?i:\\bFR[A]?\\d*\\b)|((「|\u300c)(🇫🇷)(」|\u300d)))(.*)"
-replace = "法国 $6"
+# [[node_pref.rename_node]]
+# match = "^((?i:\\bFR[A]?\\d*\\b)|((「|\u300c)(🇫🇷)(」|\u300d)))(.*)"
+# replace = "法国 $6"
 
-[[node_pref.rename_node]]
-match = "^((?i:\\bCA[N]?\\d*\\b)|((「|\u300c)(🇨🇦)(」|\u300d)))(.*)"
-replace = "加拿大 $6"
+# [[node_pref.rename_node]]
+# match = "^((?i:\\bCA[N]?\\d*\\b)|((「|\u300c)(🇨🇦)(」|\u300d)))(.*)"
+# replace = "加拿大 $6"
 
-[[node_pref.rename_node]]
-match = "^((?i:\\bAU[S]?\\d*\\b)|((「|\u300c)(🇦🇺)(」|\u300d)))(.*)"
-replace = "澳大利亚 $6"
+# [[node_pref.rename_node]]
+# match = "^((?i:\\bAU[S]?\\d*\\b)|((「|\u300c)(🇦🇺)(」|\u300d)))(.*)"
+# replace = "澳大利亚 $6"
 
-[[node_pref.rename_node]]
-match = "^((?i:\\bC[H]?N\\b)|((「|\u300c)(🇨🇳)(」|\u300d)))(.*)"
-replace = "中国 $6"
+# [[node_pref.rename_node]]
+# match = "^((?i:\\bC[H]?N\\b)|((「|\u300c)(🇨🇳)(」|\u300d)))(.*)"
+# replace = "中国 $6"
 
-[[node_pref.rename_node]]
-match = "^(\\bRO\\d*\\b)(.*)"
-replace = "罗马尼亚 $2"
+# [[node_pref.rename_node]]
+# match = "^(\\bRO\\d*\\b)(.*)"
+# replace = "罗马尼亚 $2"
 
-[[node_pref.rename_node]]
-match = "^(\\bBR\\d*\\b)(.*)"
-replace = "巴西 $2"
+# [[node_pref.rename_node]]
+# match = "^(\\bBR\\d*\\b)(.*)"
+# replace = "巴西 $2"
 
-[[node_pref.rename_node]]
-match = "^((?i:\\bES[P]?\\d*\\b)|((「|\u300c)(🇪🇸)(」|\u300d)))(.*)"
-replace = "西班牙 $6"
+# [[node_pref.rename_node]]
+# match = "^((?i:\\bES[P]?\\d*\\b)|((「|\u300c)(🇪🇸)(」|\u300d)))(.*)"
+# replace = "西班牙 $6"
 
 [[node_pref.rename_node]]
 match = "移动"
@@ -287,13 +287,13 @@ replace = "深港"
 match = "(转)"
 replace = "▷"
 
-[[node_pref.rename_node]]
-match = "((NF)|(NF\\*)|(BBC)|(abema)|(动画疯)|(Netflix)|(動畫瘋)|(Hulu)|(\\[注册Netflix\\])|(HBO)|(TVB)|(D\\+)|(Yp)|(Y2B P)|(AI)|(解锁流媒体)|(原生IP)|(原生)|( NF )|( D\\+ )|(流媒体)|(-M)|(解锁))"
-replace = "[M]"
+# [[node_pref.rename_node]]
+# match = "((\\|NF)|(\\|NF\\*)|(\\|BBC)|(\\|abema)|(\\|动画疯)|(\\|Netflix)|(\\|動畫瘋)|(\\|Hulu)|(\\|\\[注册Netflix\\])|(\\|HBO)|(\\|TVB)|(\\|D\\+)|(\\|Yp)|(\\|Y2B P)|(\\|AI)|(解锁流媒体)|(原生IP)|(原生)|(\\| NF )|(\\| D\\+ )|(流媒体)|(-M)|(解锁))"
+# replace = "[M]"
 
-[[node_pref.rename_node]]
-match = "\\[M\\].*\\[M\\]"
-replace = "[M]"
+# [[node_pref.rename_node]]
+# match = "\\[M\\].*\\[M\\]"
+# replace = "[M]"
 
 [[node_pref.rename_node]]
 match = "(\\w+|[\u4e00-\u9fa5]+)\\s\\1"
@@ -307,37 +307,37 @@ replace = ""
 # match = "(?!<=[\\]|\\)])$"
 # replace = "[x1]"
 
-[[node_pref.rename_node]]
-match = "(x|X)(\\d*.?\\d*\\d)"
-replace = "[x$2]"
+# [[node_pref.rename_node]]
+# match = "(x|X)(\\d*.?\\d*\\d)"
+# replace = "[x$2]"
 
-[[node_pref.rename_node]]
-match = "(.*)(\\[)(倍率:)(.*\\d)(\\])"
-replace = "$1[x$4]"
+# [[node_pref.rename_node]]
+# match = "(.*)(\\[)(倍率:)(.*\\d)(\\])"
+# replace = "$1[x$4]"
 
-[[node_pref.rename_node]]
-match = "(\\[x.*\\d\\])(.*)"
-replace = "$2$1"
+# [[node_pref.rename_node]]
+# match = "(\\[x.*\\d\\])(.*)"
+# replace = "$2$1"
 
-[[node_pref.rename_node]]
-match = "(.*)( )(.*\\d)(倍率)"
-replace = "$1[x$3]"
+# [[node_pref.rename_node]]
+# match = "(.*)( )(.*\\d)(倍率)"
+# replace = "$1[x$3]"
 
-[[node_pref.rename_node]]
-match = "(.*)(\\|)(x.*\\d)(倍率)"
-replace = "$1[$3]"
+# [[node_pref.rename_node]]
+# match = "(.*)(\\|)(x.*\\d)(倍率)"
+# replace = "$1[$3]"
 
-[[node_pref.rename_node]]
-match = "(.*)( )(x.*\\d)"
-replace = "$1[$3]"
+# [[node_pref.rename_node]]
+# match = "(.*)( )(x.*\\d)"
+# replace = "$1[$3]"
 
-[[node_pref.rename_node]]
-match = "\\[\\]"
-replace = ""
+# [[node_pref.rename_node]]
+# match = "\\[\\]"
+# replace = ""
 
-[[node_pref.rename_node]]
-match = "\\(?((x|X)?(\\d+)(\\.?\\d+)?)((\\s?倍率?)|(x|X))\\)?"
-replace = "[x$1]"
+# [[node_pref.rename_node]]
+# match = "\\(?((x|X)?(\\d+)(\\.?\\d+)?)((\\s?倍率?)|(x|X))\\)?"
+# replace = "[x$1]"
 
 # import = "snippets/rename_node.toml"
 
