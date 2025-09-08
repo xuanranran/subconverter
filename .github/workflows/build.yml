@@ -107,7 +107,7 @@ jobs:
       - name: Checkout base
         uses: actions/checkout@v4
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Add commit id into version
@@ -160,7 +160,7 @@ jobs:
       - name: Checkout base
         uses: actions/checkout@v4
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
       - name: Setup Node.js
