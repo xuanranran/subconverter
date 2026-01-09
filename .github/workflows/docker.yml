@@ -1,22 +1,21 @@
 name: Publish Docker Image
 on:
-  # push:
-    # branches:
-      # - main
-    # paths:
-      # - '**'
-      # - '!.github/**'
-      # - '!CHANGELOG.md'
-      # - '!sub-web/**'
+  push:
+    branches: [main]
+    paths:
+      - '**'
+      - '!.github/**'
+      - '!CHANGELOG.md'
+      - '!sub-web/**'
   workflow_dispatch:
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
   cancel-in-progress: true
 
 env:
-  DOCKERHUB_REPO: lovinyarn/subconverter
-  GHCR_REPO: ghcr.io/xuanranran/subconverter
-  GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
+  DOCKERHUB_REPO: fireflylzh/subconverter
+  GHCR_REPO: ghcr.io/lm-firefly/subconverter
+  GIT_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
 # https://docs.docker.com/build/ci/github-actions/multi-platform/
 jobs:
@@ -47,7 +46,7 @@ jobs:
         with:
           timezoneLinux: 'Asia/Shanghai'
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Set up QEMU
@@ -91,7 +90,7 @@ jobs:
           tags: |
             ${{ steps.meta.outputs.tags }}
           #            ${{ env.DOCKERHUB_REPO }}:latest
-          #            ghcr.io/xuanranran/subconverter:latest
+          #            ghcr.io/lm-firefly/subconverter:latest
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SHA=${{ steps.set-ver.outputs.sha_short }}
@@ -110,7 +109,7 @@ jobs:
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: digest-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*
@@ -125,7 +124,7 @@ jobs:
       VERSION: ${{ needs.build.outputs.version }}
     steps:
       - name: Download digests
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: /tmp/digests
           pattern: digest-*

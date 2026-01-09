@@ -1,5 +1,5 @@
 {% if request.target == "clash" or request.target == "clashr" %}
-mixed-port: {{ default(global.clash.mixed_port, "7893") }}
+mixed-port: {{ default(global.clash.mixed_port, "18888") }}
 #redir-port: {{ default(global.clash.redir_port, "18890") }}
 #authentication:
 #  - "firefly:WJ960923"
@@ -7,12 +7,12 @@ allow-lan: {{ default(global.clash.allow_lan, "true") }}
 bind-address: '*'
 mode: rule
 log-level: {{ default(global.clash.log_level, "info") }}
-external-controller: {{ default(global.clash.api_port, "0.0.0.0:9090")}}
-external-ui: /ui/
-#external-ui-name: zashboard
-external-ui-url: "https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip"
+external-controller: {{ default(global.clash.api_port, "0.0.0.0:19090")}}
+external-ui: ui
+#external-ui-name: zash
+external-ui-url: 'https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip'
 secret: ''
-routing-mark: {{ default(global.clash.routing_mark, "6666")}}
+routing-mark: {{ default(global.clash.routing_mark, "16666")}}
 experimental:
   ignore-resolve-fail: true
   sniff-tls-sni: true
@@ -55,28 +55,32 @@ ipv6: true
 tun:
   enable: true
   stack: mixed # system/gvisor/mixed
-  device: mihomo
+  auto-route: true
+  auto-redirect: true
+  auto-detect-interface: true
   dns-hijack:
     - any:53
     - tcp://any:53
-  auto-detect-interface: true
-  auto-route: true
+  device: mihomo
   mtu: 9000
   strict-route: true
   gso: true
   gso-max-size: 65536
-  auto-redirect: true
   udp-timeout: 300
+  endpoint-independent-nat: false
   route-address: # 启用 auto-route 时使用自定义路由而不是默认路由
     - 0.0.0.0/1
     - 128.0.0.0/1
     - "::/1"
     - "8000::/1"
-  endpoint-independent-nat: false
+  exclude-package:
+  - com.milink.service
+  - com.xiaomi.mi_connect_service
+  - com.xiaomi.mis
 #interface-name: WLAN
 dns:
-  cache-algorithm: arc
   enable: true
+  cache-algorithm: arc
   prefer-h3: true
   listen: 0.0.0.0:5053
   ipv6: true
@@ -85,22 +89,19 @@ dns:
 {% else %}
 ipv6: true
 #interface-name: WLAN
-hosts:
-  mtalk.google.com: 108.177.125.188
-  raw.githubusercontent.com: 185.199.108.133
-  objects.githubusercontent.com: 185.199.110.133
-
 dns:
   enable: true
-  prefer-h3: true
   listen: 0.0.0.0:1053
   ipv6: true
 {% endif %}
+  use-system-hosts: false
   default-nameserver:
-    - 114.114.114.144
     - 223.5.5.5
+    - 119.29.29.29
+    - 1.1.1.1
   enhanced-mode: fake-ip # or redir-host (not recommended)
-  fake-ip-range: 198.18.0.1/16
+  fake-ip-range: 22.0.0.0/8
+  fake-ip-filter-mode: blacklist
   fake-ip-filter:
     # === LAN ===
     - '*.example'
@@ -155,9 +156,6 @@ dns:
     # === MiJia ===
     - 'Mijia Cloud'
     - '+.mijia.tech'
-  fake-ip-filter-mode: blacklist
-  use-hosts: true
-  respect-rules: false
   nameserver:
     - 223.5.5.5
     - 119.29.29.29
@@ -209,20 +207,19 @@ dns:
       - 127.0.0.0/8
       - 240.0.0.0/4
       - 255.255.255.255/32
-  use-system-hosts: false
-sniffer:
-  enable: true
-  force-dns-mapping: true
-  parse-pure-ip: true
-  override-destination: true
-  sniff:
-    QUIC:
-      ports: [443, 8443]
-    TLS:
-      ports: [443, 8443]
-    HTTP:
-      ports: [80, 8080-8880]
-      override-destination: true
+#sniffer:
+#  enable: true
+#  force-dns-mapping: true
+#  parse-pure-ip: true
+#  override-destination: true
+#  sniff:
+#    HTTP:
+#      ports: [80, 8080-8880]
+#      override-destination: true
+#    TLS:
+#      ports: [443, 8443]
+#    QUIC:
+#      ports: [443, 8443]
 #  force-domain:
 #    - +.v2ex.com
   skip-domain:
@@ -265,8 +262,8 @@ external-controller-access = 6170@0.0.0.0:6155
 tls-provider = openssl
 # skip-proxy = 127.0.0.0/8, 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, 100.64.0.0/10, localhost, *.local
 force-http-engine-hosts = 122.14.246.33, 175.102.178.52, mobile-api2011.elong.com
-internet-test-url = https://www.google-analytics.com/generate_204
-proxy-test-url = https://www.google-analytics.com/generate_204
+internet-test-url = https://connectivitycheck.gstatic.com/generate_204
+proxy-test-url = https://connectivitycheck.gstatic.com/generate_204
 test-timeout = 5
 hide-vpn-icon = true
 read-etc-hosts = true
@@ -316,7 +313,7 @@ bypass-tun = 22.0.0.0/8
 dns-server = system, 119.29.29.29, 223.5.5.5, 1.1.1.1, 1.0.0.1, 8.8.8.8, 8.8.4.4, 9.9.9.9:9953
 doh-server = https://dns.alidns.com/dns-query, https://dns.ipv6dns.com/dns-query, https://doh.pub/dns-query, https://rubyfish.cn/dns-query, https://all.dns.mullvad.net/dns-query, https://unfiltered.adguard-dns.com/dns-query, https://cloudflare-dns.com/dns-query, https://dns.google/dns-query, https://doh.dns.sb/dns-query, https://dns.twnic.tw/dns-query, https://doh.opendns.com/dns-query, https://dns.quad9.net/dns-query
 host = 127.0.0.1
-proxy-test-url = https://www.google-analytics.com/generate_204
+proxy-test-url = https://connectivitycheck.gstatic.com/generate_204
 # skip-proxy = 127.0.0.0/8, 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, 100.64.0.0/10, localhost, *.local
 test-timeout = 2
 interface-mode = auto
@@ -415,8 +412,8 @@ STATE,AUTO
 dns_exclusion_list = *.cmbchina.com, *.cmpassport.com, *.jegotrip.com.cn, *.icitymobile.mobi, *.pingan.com.cn, id6.me
 excluded_routes=10.0.0.0/8, 127.0.0.0/8, 169.254.0.0/16, 192.0.2.0/24, 192.168.0.0/16, 198.51.100.0/24, 224.0.0.0/4
 geo_location_checker=http://ip-api.com/json/?lang=zh-CN, https://github.com/KOP-XIAO/QuantumultX/raw/master/Scripts/IP_API.js
-network_check_url=https://www.google-analytics.com/generate_204
-server_check_url=https://www.google-analytics.com/generate_204
+network_check_url=https://connectivitycheck.gstatic.com/generate_204
+server_check_url=https://connectivitycheck.gstatic.com/generate_204
 
 [dns]
 server=119.29.29.29
@@ -504,8 +501,8 @@ external-controller-access = surfboard@0.0.0.0:6170
 # skip-proxy = 127.0.0.0/8, 192.168.0.0/16, 10.0.0.0/8, 172.16.0.0/12, 100.64.0.0/10, localhost, *.local
 udp-policy-not-supported-behaviour = REJECT
 hide-crashlytics-request = false
-internet-test-url = https://www.google-analytics.com/generate_204
-proxy-test-url = https://www.google-analytics.com/generate_204
+internet-test-url = https://connectivitycheck.gstatic.com/generate_204
+proxy-test-url = https://connectivitycheck.gstatic.com/generate_204
 test-timeout = 5
 
 [Host]

@@ -8,28 +8,28 @@ match = "(..|...)(\\d\\d\\d\\d|\\d\\d\\d)(\\|)(Azure|HKT|CN2GIA)"
 replace = "$1$4$2"
 
 [[rename_node]]
-match = "^CordCloud - "
+match = "((^CordCloud - )|(关注TG@txwl666)|(一元机场:ssrsub.de)|(机场推荐:dafei.de)|(机场推荐:)|(FIBERSTATE LLC)|(PCCW IMS)|(PCCW IMS LIMITED))"
 replace = ""
 
 [[rename_node]]
-match = "(标准)|(标准线路)|(线路)|(中转)|(直连)|(80端口)|(V\\d-)|(IEPL专线 )|(IPV6)|((海外\\|新疆专用))|((\u6d77\u5916\\|\u65b0\u7586\u4e13\u7528))"
+match = "(标准)|(标准线路)|(线路)|(中转)|(直连)|(80端口)|(V\\d-)|((IEPL)|(IEPL专线)|(IPLC)|(IPLC专线))|(IPV6)|((海外\\|新疆专用))|((\u6d77\u5916\\|\u65b0\u7586\u4e13\u7528)|(CLOUD))"
 replace = ""
 
-# [[rename_node]]
-# match = "(.*)( )(.*\\d)( \\| )(.*)"
-# replace = "$1$3$5"
+[[rename_node]]
+match = "(.*)( )(.*\\d)( \\| )(.*)"
+replace = "$1$3$5"
 
-# [[rename_node]]
-# match = "(.*)(\\b\\d.*\\d\\b)(静态解锁|动态解锁|原生解锁|解锁|动态原生|静态原生|原生)"
-# replace = "$1$2[M]"
+[[rename_node]]
+match = "(.*)(\\b\\d.*\\d\\b)(静态解锁|动态解锁|原生解锁|解锁|动态原生|静态原生|原生|家宽)"
+replace = "$1$2[M]"
 
-# [[rename_node]]
-# match = "(.*)(\\d.*\\d)(\\|[\\w].*\\d)"
-# replace = "$1$2"
+[[rename_node]]
+match = "(.*)(\\d.*\\d)(\\|[\\w].*\\d)"
+replace = "$1$2"
 
-# [[rename_node]]
-# match = "(.*)(NO)(.?\\d?\\d?\\d)$"
-# replace = "$1 $3"
+[[rename_node]]
+match = "(?i)(.*?\\p{Han})(?:NO)[.\\-]?(\\d+[A-Za-z0-9\\-]*)$"
+replace = "$1 $2"
 
 # [[rename_node]]
 # match = "(「|\u300c)(\\p{RI}\\p{RI})(」|\u300d)"
@@ -39,81 +39,81 @@ replace = ""
 match = "((CN\\d•)|^)(⓪|❶|❷|❸|❻)(TJ\\.|gR\\.|V2\\.|H2\\.|SS\\.)"
 replace = ""
 
-# [[rename_node]]
-# match = "(商宽)|(\\d组)|(--)|(◆)"
-# replace = ""
+[[rename_node]]
+match = "(商宽)|(\\d组)|(--)|(◆)"
+replace = ""
 
-# [[rename_node]]
-# match = "^(.*)(?i:\\bHK[G]?\\d*\\b|Hong.*?Kong|\\bHKT\\d*\\b|\\bHKBN\\d*\\b|\\bHGC\\d*\\b|\\bWTT\\d*\\b|\\bCMI\\d*\\b|\\bHK\\d*\\b)([\u4e00-\u9fa5].*|\\d*)"
-# replace = "香港 $2"
+[[rename_node]]
+match = "^(.*)(?i:\\bHK[G]?\\d*\\b|Hong.*?Kong|\\bHKT\\d*\\b|\\bHKBN\\d*\\b|\\bHGC\\d*\\b|\\bWTT\\d*\\b|\\bCMI\\d*\\b|\\bHK\\d*\\b)([\u4e00-\u9fa5].*|\\d*)"
+replace = "🇭🇰 香港$2"
 
-# [[rename_node]]
-# match = "^((「|\u300c)(🇭🇰)(」|\u300d))(.*)"
-# replace = "香港 $5"
+[[rename_node]]
+match = "^((「|\u300c)(🇭🇰)(」|\u300d))(.*)"
+replace = "🇭🇰 香港$5"
 
-# [[rename_node]]
-# match = "^((?i:\\bUS[A]?\\d*\\b)|((「|\u300c)(🇺🇸)(」|\u300d)))(.*)"
-# replace = "美国 $6"
+[[rename_node]]
+match = "^(🇺🇸\\s*)?((?i:\\bUS[A]?\\d*\\b)|((「|\\u300c)(🇺🇸)(」|\\u300d)))\\s*(.*)"
+replace = "🇺🇸 美国$7"
 
-# [[rename_node]]
-# match = "^((?i:\\bJP[N]?\\d*\\b)|((「|\u300c)(🇯🇵)(」|\u300d)))(.*)"
-# replace = "日本 $6"
+[[rename_node]]
+match = "^(🇯🇵\\s*)?((?i:\\bJP[N]?\\d*\\b)|((「|\\u300c)(🇯🇵)(」|\\u300d)))\\s*(.*)"
+replace = "🇯🇵 日本$7"
 
-# [[rename_node]]
-# match = "^((?i:\\bTW[N]?\\d*\\b)|((「|\u300c)(🇹🇼)(」|\u300d)))(.*)"
-# replace = "台湾 $6"
+[[rename_node]]
+match = "^(🇹🇼\\s*)?((?i:\\bTW[N]?\\d*\\b)|((「|\\u300c)(🇹🇼)(」|\\u300d)))\\s*(.*)"
+replace = "🇹🇼 台湾$7"
 
-# [[rename_node]]
-# match = "^((?i:\\bMO\\d*\\b)|((「|\u300c)(🇲🇴)(」|\u300d)))(.*)"
-# replace = "澳门 $6"
+[[rename_node]]
+match = "^(🇲🇴\\s*)?((?i:\\bMO\\d*\\b)|((「|\\u300c)(🇲🇴)(」|\\u300d)))\\s*(.*)"
+replace = "🇲🇴 澳门$7"
 
-# [[rename_node]]
-# match = "^((?i:\\bSG[P]?\\d*\\b)|((「|\u300c)(🇸🇬)(」|\u300d)))(.*)"
-# replace = "新加坡 $6"
+[[rename_node]]
+match = "^(🇸🇬\\s*)?((?i:\\bSG[P]?\\d*\\b)|((「|\\u300c)(🇸🇬)(」|\\u300d)))\\s*(.*)"
+replace = "🇸🇬 新加坡$7"
 
-# [[rename_node]]
-# match = "^(?i:\\bRU[S]?\\d*\\b)(.*)"
-# replace = "俄罗斯 $2"
+[[rename_node]]
+match = "^(?i:\\bRU[S]?\\d*\\b)(.*)"
+replace = "俄罗斯$2"
 
-# [[rename_node]]
-# match = "^(\\bT[U]R\\b)(.*)"
-# replace = "土耳其 $2"
+[[rename_node]]
+match = "^(\\bT[U]R\\b)(.*)"
+replace = "土耳其$2"
 
-# [[rename_node]]
-# match = "^((?i:\\bUK\\d*\\b|\\bGB[R]?\\d*\\b)|((「|\u300c)(🇬🇧)(」|\u300d)))(.*)"
-# replace = "英国 $6"
+[[rename_node]]
+match = "^(🇬🇧\\s*)?((?i:\\bUK\\d*\\b|\\bGB[R]?\\d*\\b)|((「|\\u300c)(🇬🇧)(」|\\u300d)))\\s*(.*)"
+replace = "🇬🇧 英国$7"
 
-# [[rename_node]]
-# match = "^((?i:(?<!North\\s)(\\bK[O]?R\\d*\\b))|((「|\u300c)(🇰🇷)(」|\u300d)))(.*)"
-# replace = "韩国 $7"
+[[rename_node]]
+match = "^(🇰🇷\\s*)?((?i:(\\b(?<!North\\s)\\bK(orea|OR|R)\\s?\\d*))|((「|\\u300c)(🇰🇷)(」|\\u300d)))\\s*(.*)"
+replace = "🇰🇷 韩国$8"
 
-# [[rename_node]]
-# match = "^((?i:\\bFR[A]?\\d*\\b)|((「|\u300c)(🇫🇷)(」|\u300d)))(.*)"
-# replace = "法国 $6"
+[[rename_node]]
+match = "^(🇫🇷\\s*)?((?i:\\bFR[A]?\\d*\\b)|((「|\\u300c)(🇫🇷)(」|\\u300d)))\\s*(.*)"
+replace = "🇫🇷 法国$7"
 
-# [[rename_node]]
-# match = "^((?i:\\bCA[N]?\\d*\\b)|((「|\u300c)(🇨🇦)(」|\u300d)))(.*)"
-# replace = "加拿大 $6"
+[[rename_node]]
+match = "^(🇨🇦\\s*)?((?i:\\bCA[N]?\\d*\\b)|((「|\\u300c)(🇨🇦)(」|\\u300d)))\\s*(.*)"
+replace = "🇨🇦 加拿大$7"
 
-# [[rename_node]]
-# match = "^((?i:\\bAU[S]?\\d*\\b)|((「|\u300c)(🇦🇺)(」|\u300d)))(.*)"
-# replace = "澳大利亚 $6"
+[[rename_node]]
+match = "^(🇦🇺\\s*)?((?i:\\bAU[S]?\\d*\\b)|((「|\\u300c)(🇦🇺)(」|\\u300d)))\\s*(.*)"
+replace = "🇦🇺 澳大利亚$7"
 
-# [[rename_node]]
-# match = "^((?i:\\bC[H]?N\\b)|((「|\u300c)(🇨🇳)(」|\u300d)))(.*)"
-# replace = "中国 $6"
+[[rename_node]]
+match = "^(🇨🇳\\s*)?((?i:\\bC[H]?N\\b)|((「|\\u300c)(🇨🇳)(」|\\u300d)))\\s*(.*)"
+replace = "🇨🇳 中国$7"
 
-# [[rename_node]]
-# match = "^(\\bRO\\d*\\b)(.*)"
-# replace = "罗马尼亚 $2"
+[[rename_node]]
+match = "^(\\bRO\\d*\\b)(.*)"
+replace = "罗马尼亚$2"
 
-# [[rename_node]]
-# match = "^(\\bBR\\d*\\b)(.*)"
-# replace = "巴西 $2"
+[[rename_node]]
+match = "^(\\bBR\\d*\\b)(.*)"
+replace = "巴西$2"
 
-# [[rename_node]]
-# match = "^((?i:\\bES[P]?\\d*\\b)|((「|\u300c)(🇪🇸)(」|\u300d)))(.*)"
-# replace = "西班牙 $6"
+[[rename_node]]
+match = "^(🇪🇸\\s*)?((?i:\\bES[P]?\\d*\\b)|((「|\\u300c)(🇪🇸)(」|\\u300d)))\\s*(.*)"
+replace = "🇪🇸 西班牙$7"
 
 [[rename_node]]
 match = "移动"
@@ -135,54 +135,42 @@ replace = "深港"
 match = "(转)"
 replace = "▷"
 
-# [[rename_node]]
-# match = "((\\|NF)|(\\|NF\\*)|(\\|BBC)|(\\|abema)|(\\|动画疯)|(\\|Netflix)|(\\|動畫瘋)|(\\|Hulu)|(\\|\\[注册Netflix\\])|(\\|HBO)|(\\|TVB)|(\\|D\\+)|(\\|Yp)|(\\|Y2B P)|(\\|AI)|(解锁流媒体)|(原生IP)|(原生)|(\\| NF )|(\\| D\\+ )|(流媒体)|(-M)|(解锁))"
-# replace = "[M]"
+[[rename_node]]
+match = "((NF)|(NF\\*)|(BBC)|(abema)|(动画疯)|(Netflix)|(動畫瘋)|(Hulu)|(\\[注册Netflix\\])|(HBO)|(TVB)|(D\\+)|(Disney)|(Yp)|(Youtube)|(Y2B P)|(AI)|(解锁流媒体)|(原生IP)|(原生)|( NF )|( D\\+ )|(流媒体)|(-M)|(解锁)|(家宽))"
+replace = "[M]"
 
-# [[rename_node]]
-# match = "\\[M\\].*\\[M\\]"
-# replace = "[M]"
+[[rename_node]]
+match = "\\[M\\].*\\[M\\]"
+replace = "[M]"
 
 [[rename_node]]
 match = "(\\w+|[\u4e00-\u9fa5]+)\\s\\1"
 replace = "$1 "
 
 [[rename_node]]
+match = "((?:\\p{RI}{2})|[\\x{2600}-\\x{27BF}\\x{1F300}-\\x{1F5FF}\\x{1F600}-\\x{1F64F}\\x{1F680}-\\x{1F6FF}\\x{1F900}-\\x{1F9FF}\\x{1FA70}-\\x{1FAFF}])\\1+"
+replace = "$1"
+
+[[rename_node]]
 match = "\\[CM\\]|\\[CU\\]|\\[BT\\/PT专用\\]|\\[荐\\]|\\[Beta\\]|\\[移动\\]|\\[联通\\]|\\[综合\\]|\\[备用\\]|\\[阿里云\\]|\\[测试\\]|\\[v6\\]|高速|100m限速|CDN加速|Game|PPCW|Sakura"
 replace = ""
 
-# [[rename_node]]
-# match = "(?!<=[\\]|\\)])$"
-# replace = "[x1]"
+[[rename_node]]
+match = "(.*?)(\\d+(?:\\.\\d+)?)(?:\\s*[xX])(.*)"
+replace = "$1[x$2]$3"
 
-# [[rename_node]]
-# match = "(x|X)(\\d*.?\\d*\\d)"
-# replace = "[x$2]"
+[[rename_node]]
+match = "(.*?)(?:[\\[【]\\s*)?(\\d+(?:\\.\\d+)?)(?:\\s*倍(?:率)?)?倍率(?:\\s*[\\]】])?(.*)"
+replace = "$1$3[x$2]"
 
-# [[rename_node]]
-# match = "(.*)(\\[)(倍率:)(.*\\d)(\\])"
-# replace = "$1[x$4]"
+[[rename_node]]
+match = "(.*?)(?:[\\[【]?倍率:?[\\]】]?\\s*(\\d+(?:\\.\\d+)?)(?:\\s*倍(?:率)?)?|(?:x|X)(\\d+(?:\\.\\d+)?))(.*)"
+replace = "$1[x$2$3]$4"
 
-# [[rename_node]]
-# match = "(\\[x.*\\d\\])(.*)"
-# replace = "$2$1"
+[[rename_node]]
+match = "(.*)\\[x(\\d+(?:\\.\\d+)?)\\](.*)"
+replace = "$1$3[x$2]"
 
-# [[rename_node]]
-# match = "(.*)( )(.*\\d)(倍率)"
-# replace = "$1[x$3]"
-
-# [[rename_node]]
-# match = "(.*)(\\|)(x.*\\d)(倍率)"
-# replace = "$1[$3]"
-
-# [[rename_node]]
-# match = "(.*)( )(x.*\\d)"
-# replace = "$1[$3]"
-
-# [[rename_node]]
-# match = "\\[\\]"
-# replace = ""
-
-# [[rename_node]]
-# match = "\\(?((x|X)?(\\d+)(\\.?\\d+)?)((\\s?倍率?)|(x|X))\\)?"
-# replace = "[x$1]"
+[[rename_node]]
+match = "\\[\\]"
+replace = ""

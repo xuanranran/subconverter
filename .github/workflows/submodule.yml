@@ -1,13 +1,13 @@
 name: Update submodule
 
 on:
-  # push:
-    # branches:
-      # - main
-    # paths:
-      # - '**'
-      # - '!.github/**'
-      # - '!base/sub-web/**'
+  push:
+    branches:
+      - simpleweb
+    paths:
+      - "**"
+      - "!.github/**"
+      - "!base/sub-web/**"
   workflow_dispatch:
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
@@ -21,40 +21,27 @@ jobs:
       ui-version: ${{ steps.web.outputs.ui-ver }}
       rule-version: ${{ steps.rule.outputs.rule-ver }}
     env:
-      GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
+      GIT_TOKEN: ${{secrets.GITHUB_TOKEN}}
     steps:
       - name: Setup timezone
         uses: szenius/set-timezone@v2.0
         with:
-          timezoneLinux: 'Asia/Shanghai'
-      - uses: actions/checkout@v4
+          timezoneLinux: "Asia/Shanghai"
+      - uses: actions/checkout@v6
         with:
-          submodules: 'true'
-          token: ${{env.GIT_TOKEN}}
-      - name: Delete workflow runs
-        uses: Mattraks/delete-workflow-runs@v2
-        with:
-            retain_days: 0
-            keep_minimum_runs: 1
-      - name: Remove old Releases
-        uses: dev-drprasad/delete-older-releases@v0.3.4
-        if: env.UPLOAD_RELEASE == 'true' && !cancelled()
-        with:
-            keep_latest: 1
-            delete_tags: true
-        env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          submodules: "true"
       - name: Update sub-web
         run: |
           sudo rm -rf sub-web
           sudo rm -rf base/sub-web
-          git clone https://github.com/xuanranran/subweb.git sub-web
-      - name: Update Rules
+          git clone https://github.com/LM-Firefly/sub-web.git
+      - name: Update Rules & Config Files
         id: rule
         run: |
           sudo rm -rf base/rules/LM-Firefly
           git clone https://github.com/LM-Firefly/Rules.git
           mv Rules base/rules/LM-Firefly
+          sudo cp -f base/rules/LM-Firefly/Subconverter-base/*.toml base/config/
           cd base/rules/LM-Firefly
           echo "rule-ver=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       - name: Check sub-web commit
@@ -62,15 +49,16 @@ jobs:
         run: |
           cd sub-web
           echo "ui-ver=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-      - name: Use Node.js 20
-        uses: actions/setup-node@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: "latest"
       - name: Get dependencies and build
         run: |
           cd sub-web
-          yarn install
-          yarn build
+          npm install -g pnpm@latest-10
+          pnpm install
+          pnpm run build
       - name: Clean up
         run: |
           cd $GITHUB_WORKSPACE
@@ -84,8 +72,8 @@ jobs:
         with:
           author_email: mail@example.com
           default_author: github_actions
-          message: 'Updated submodule sub-web to commit ${{ steps.web.outputs.ui-ver }} & Rules to commit ${{ steps.rule.outputs.rule-ver }} 🎉 '
-          add: '-A'
+          message: "Updated submodule sub-web to commit ${{ steps.web.outputs.ui-ver }} & Rules to commit ${{ steps.rule.outputs.rule-ver }} 🎉 "
+          add: "-A"
         env:
           token: ${{env.GIT_TOKEN}}
 
@@ -93,19 +81,19 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
     env:
-      GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
+      GIT_TOKEN: ${{secrets.GITHUB_TOKEN}}
     steps:
       - name: Setup timezone
         uses: szenius/set-timezone@v2.0
         with:
-          timezoneLinux: 'Asia/Shanghai'
-      - uses: actions/checkout@v4
+          timezoneLinux: "Asia/Shanghai"
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{env.GIT_TOKEN}}
       - name: Github CI
         if: ${{ github.ref == 'refs/heads/main' }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{env.GIT_TOKEN}}
           script: |
@@ -117,7 +105,7 @@ jobs:
             });
       - name: Publish Docker
         if: ${{ github.ref == 'refs/heads/main' }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           github-token: ${{env.GIT_TOKEN}}
           script: |
@@ -132,20 +120,20 @@ jobs:
 #    needs: prepare
 #    runs-on: ubuntu-latest
 #    env:
-#      GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
+#      GIT_TOKEN: ${{secrets.GITHUB_TOKEN}}
 #      UI-VERSION: ${{ needs.prepare.outputs.ui-version }}
 #    steps:
 #      - name: Setup timezone
 #        uses: szenius/set-timezone@v2.0
 #        with:
 #          timezoneLinux: "Asia/Shanghai"
-#      - uses: actions/checkout@v4
+#      - uses: actions/checkout@v6
 #        with:
 #          fetch-depth: 0
 #          token: ${{env.GIT_TOKEN}}
 #      - name: Build CHANGELOG
 #        id: build_changelog
-#        uses: mikepenz/release-changelog-builder-action@v5
+#        uses: mikepenz/release-changelog-builder-action@v6.0.0
 #        with:
 #          configurationJson: |
 #            {
@@ -198,7 +186,7 @@ jobs:
 #      - name: Insert Changelog
 #        run: |
 #          echo "${{steps.build_changelog.outputs.changelog}}" >> $GITHUB_WORKSPACE/CHANGELOG.md
-#      - uses: actions/checkout@v4
+#      - uses: actions/checkout@v6
 #        with:
 #          fetch-depth: 0
 #          token: ${{env.GIT_TOKEN}}
@@ -215,13 +203,13 @@ jobs:
 #    needs: prepare
 #    runs-on: ubuntu-latest
 #    env:
-#      GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
+#      GIT_TOKEN: ${{secrets.GITHUB_TOKEN}}
 #    steps:
 #      - name: Setup timezone
 #        uses: szenius/set-timezone@v2.0
 #        with:
 #          timezoneLinux: "Asia/Shanghai"
-#      - uses: actions/checkout@v4
+#      - uses: actions/checkout@v6
 #        with:
 #          fetch-depth: 0
 #          token: ${{env.GIT_TOKEN}}
@@ -238,14 +226,14 @@ jobs:
 #    needs: prepare
 #    runs-on: ubuntu-latest
 #    env:
-#      GIT_TOKEN: ${{secrets.ACTIONS_TOKEN}}
+#      GIT_TOKEN: ${{secrets.GITHUB_TOKEN}}
 #      VER: ${{ needs.prepare.outputs.ver }}
 #    steps:
 #      - name: Setup timezone
 #        uses: szenius/set-timezone@v2.0
 #        with:
 #          timezoneLinux: "Asia/Shanghai"
-#      - uses: actions/checkout@v4
+#      - uses: actions/checkout@v6
 #        with:
 #          fetch-depth: 0
 #          token: ${{env.GIT_TOKEN}}
