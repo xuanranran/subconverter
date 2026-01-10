@@ -1,5 +1,5 @@
 {% if request.target == "clash" or request.target == "clashr" %}
-mixed-port: {{ default(global.clash.mixed_port, "18888") }}
+mixed-port: {{ default(global.clash.mixed_port, "7893") }}
 #redir-port: {{ default(global.clash.redir_port, "18890") }}
 #authentication:
 #  - "firefly:WJ960923"
@@ -9,8 +9,8 @@ mode: rule
 log-level: {{ default(global.clash.log_level, "info") }}
 external-controller: {{ default(global.clash.api_port, "0.0.0.0:19090")}}
 external-ui: ui
-#external-ui-name: zash
-external-ui-url: 'https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip'
+#external-ui-name: zashboard
+external-ui-url: "https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip"
 secret: ''
 routing-mark: {{ default(global.clash.routing_mark, "16666")}}
 experimental:
@@ -80,6 +80,7 @@ tun:
 #interface-name: WLAN
 dns:
   enable: true
+  prefer-h3: true
   cache-algorithm: arc
   prefer-h3: true
   listen: 0.0.0.0:5053
@@ -100,7 +101,7 @@ dns:
     - 119.29.29.29
     - 1.1.1.1
   enhanced-mode: fake-ip # or redir-host (not recommended)
-  fake-ip-range: 22.0.0.0/8
+  fake-ip-range: 198.18.0.1/16
   fake-ip-filter-mode: blacklist
   fake-ip-filter:
     # === LAN ===
@@ -226,6 +227,8 @@ dns:
     - "Mijia Cloud"
     - +.mijia.tech
 find-process-mode: strict
+use-hosts: true
+respect-rules: false
 tcp-concurrent: true
 global-client-fingerprint: chrome
 keep-alive-interval: 30

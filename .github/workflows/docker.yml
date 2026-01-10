@@ -1,20 +1,20 @@
 name: Publish Docker Image
 on:
   push:
-    branches: [main]
-    paths:
-      - '**'
-      - '!.github/**'
-      - '!CHANGELOG.md'
-      - '!sub-web/**'
+    # branches: [main]
+    # paths:
+    #   - '**'
+    #   - '!.github/**'
+    #   - '!CHANGELOG.md'
+    #   - '!sub-web/**'
   workflow_dispatch:
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
   cancel-in-progress: true
 
 env:
-  DOCKERHUB_REPO: fireflylzh/subconverter
-  GHCR_REPO: ghcr.io/lm-firefly/subconverter
+  DOCKERHUB_REPO: lovinyarn/subconverter
+  GHCR_REPO: ghcr.io/xuanranran/subconverter
   GIT_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
 # https://docs.docker.com/build/ci/github-actions/multi-platform/
@@ -90,7 +90,7 @@ jobs:
           tags: |
             ${{ steps.meta.outputs.tags }}
           #            ${{ env.DOCKERHUB_REPO }}:latest
-          #            ghcr.io/lm-firefly/subconverter:latest
+          #            ghcr.io/xuanranran/subconverter:latest
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SHA=${{ steps.set-ver.outputs.sha_short }}

@@ -1,6 +1,6 @@
 # subconverter-docker
 
-This is a minimized image to run <https://github.com/LM-Firefly/subconverter>.
+This is a minimized image to run <https://github.com/xuanranran/subconverter>.
 
 For running this docker, simply use the following commands:
 
