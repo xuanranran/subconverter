@@ -10,14 +10,10 @@ window.config = {
     {
       value: 'http://47.122.24.200:25500',
       text: 'LovinYarn 中转后端',
-    },
-    {
-      value: 'https://suc.miaoco.com',
-      text: 'LovinYarn 后端',
-    },
+    }
   ],
   // 短域名服务地址
-  shortUrl: 'https://s.ops.ci',
+  shortUrl: 'https://i.miaoco.me',
   // 首页菜单
   menuItem: [
     {
@@ -31,7 +27,7 @@ window.config = {
       target: '_blank',
     },
   ],
-  // 远程配置地址,可以自行按照格式添加。
+  // 远程配置地址
   remoteConfigOptions: [
     {
       value: 'https://raw.githubusercontent.com/xuanranran/Clash/main/Clash/ClashRule_B.ini',
@@ -45,6 +41,20 @@ window.config = {
       value: 'https://raw.githubusercontent.com/xuanranran/Clash/main/Clash/ClashRule.ini',
       text: 'LovinYarn Online Surge',
     },
+    // LM-Firefly Options
+    {
+      value: 'https://raw.githubusercontent.com/LM-Firefly/Rules/master/Subconverter-base/MultiSub-NoReject.toml',
+      text: 'LM-Firefly MultiSub-NoReject',
+    },
+    {
+      value: 'https://raw.githubusercontent.com/LM-Firefly/Rules/master/Subconverter-base/AllSub-NoReject.toml',
+      text: 'LM-Firefly AllSub-NoReject',
+    },
+    {
+      value: 'https://raw.githubusercontent.com/LM-Firefly/Rules/master/Subconverter-base/AIO.toml',
+      text: 'LM-Firefly AIO',
+    },
+    // ACL4SSR Options
     {
       value: 'https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online.ini',
       text: 'ACL4SSR Online',
@@ -53,5 +63,22 @@ window.config = {
       value: 'https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online_Full.ini',
       text: 'ACL4SSR Online Full',
     },
+    {
+      value: 'https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online_Full_MultiMode.ini',
+      text: 'ACL4SSR Online Full MultiMode',
+    },
+    {
+      value: 'https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online_Full_AdblockPlus.ini',
+      text: 'ACL4SSR Online Full AdblockPlus',
+    },
+    {
+      value: 'https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online_Mini.ini',
+      text: 'ACL4SSR Online Mini',
+    },
+    // Universal Options
+    {
+      value: 'https://raw.githubusercontent.com/cnsilvan/sub-web-config/main/config/uncensored.ini',
+      text: 'Uncensored Config',
+    }
   ],
 };
