@@ -71,8 +71,9 @@ jobs:
       - name: Get dependencies and build
         run: |
           cd sub-web
-          yarn install
-          yarn build
+          npm install -g pnpm@latest-10
+          pnpm install
+          pnpm run build
       - name: Clean up
         run: |
           cd $GITHUB_WORKSPACE
