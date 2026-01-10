@@ -1057,7 +1057,7 @@ custom_proxy_group=节点选择`select`(^(?!.*(美国|日本)).*)
 
 1. **template_path**
 
-    > 对**子模板**文件的所在位置(即模板文件中使用 `{% include "xxx.tpl" %}` 引入的模板)做出路径限制
+    > 对**子模板**文件的所在位置(即模板文件中使用 `{% raw %}{% include "xxx.tpl" %}{% endraw %}` 引入的模板)做出路径限制
 
 2. **clash.dns 等**
 
