@@ -1,7 +1,7 @@
 name: Update submodule
 
 on:
-  push:
+  # push:
     # branches:
     #   - simpleweb
     # paths:
