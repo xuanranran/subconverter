@@ -3,11 +3,11 @@ name: Update submodule
 on:
   # push:
     # branches:
-    #   - simpleweb
+      # - simpleweb
     # paths:
-    #   - "**"
-    #   - "!.github/**"
-    #   - "!base/sub-web/**"
+      # - "**"
+      # - "!.github/**"
+      # - "!base/sub-web/**"
   workflow_dispatch:
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
