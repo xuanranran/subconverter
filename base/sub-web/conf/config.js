@@ -10,7 +10,6 @@ window.config = {
     {
       value: 'https://sub.miaoco.me',
       text: 'LovinYarn 后端',
-    },
     }
   ],
   // 短域名服务地址
