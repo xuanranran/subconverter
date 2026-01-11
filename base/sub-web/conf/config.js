@@ -5,11 +5,12 @@ window.config = {
   apiUrl: [
     {
       value: 'http://localhost:25500',
-      text: '本地版 局域网修改localhost',
+      text: '本地版 局域网请修改localhost',
     },
     {
-      value: 'http://47.122.24.200:25500',
-      text: 'LovinYarn 中转后端',
+      value: 'https://sub.miaoco.me',
+      text: 'LovinYarn 后端',
+    },
     }
   ],
   // 短域名服务地址
