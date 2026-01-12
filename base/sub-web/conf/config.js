@@ -5,11 +5,11 @@ window.config = {
   apiUrl: [
     {
       value: 'http://localhost:25500',
-      text: '本地版 局域网修改localhost',
+      text: '本地版 局域网请修改localhost',
     },
     {
-      value: 'http://47.122.24.200:25500',
-      text: 'LovinYarn 中转后端',
+      value: 'https://sub.miaoco.me',
+      text: 'LovinYarn 后端',
     }
   ],
   // 短域名服务地址
@@ -41,19 +41,6 @@ window.config = {
       value: 'https://raw.githubusercontent.com/xuanranran/Clash/main/Clash/ClashRule.ini',
       text: 'LovinYarn Online Surge',
     },
-    // LM-Firefly Options
-    {
-      value: 'https://raw.githubusercontent.com/LM-Firefly/Rules/master/Subconverter-base/MultiSub-NoReject.toml',
-      text: 'LM-Firefly MultiSub-NoReject',
-    },
-    {
-      value: 'https://raw.githubusercontent.com/LM-Firefly/Rules/master/Subconverter-base/AllSub-NoReject.toml',
-      text: 'LM-Firefly AllSub-NoReject',
-    },
-    {
-      value: 'https://raw.githubusercontent.com/LM-Firefly/Rules/master/Subconverter-base/AIO.toml',
-      text: 'LM-Firefly AIO',
-    },
     // ACL4SSR Options
     {
       value: 'https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online.ini',
@@ -62,14 +49,6 @@ window.config = {
     {
       value: 'https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online_Full.ini',
       text: 'ACL4SSR Online Full',
-    },
-    {
-      value: 'https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online_Full_MultiMode.ini',
-      text: 'ACL4SSR Online Full MultiMode',
-    },
-    {
-      value: 'https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online_Full_AdblockPlus.ini',
-      text: 'ACL4SSR Online Full AdblockPlus',
     },
     {
       value: 'https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online_Mini.ini',
