@@ -53,11 +53,6 @@ window.config = {
     {
       value: 'https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online_Mini.ini',
       text: 'ACL4SSR Online Mini',
-    },
-    // Universal Options
-    {
-      value: 'https://raw.githubusercontent.com/cnsilvan/sub-web-config/main/config/uncensored.ini',
-      text: 'Uncensored Config',
     }
   ],
 };
