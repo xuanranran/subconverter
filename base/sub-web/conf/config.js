@@ -6,6 +6,8 @@ window.config = {
     { value: 'https://sub.miaoceo.com', text: 'subconverter', profile: 'standard' },
   ],
   shortUrl: 'https://i.miaoceo.com',
+  // Extended 的 Clash / Mihomo 可选 Aethersailor 模板；false 可关闭内置模板。
+  aethersailorPresets: true,
   remoteConfigOptions: [
     {
       value: 'https://raw.githubusercontent.com/xuanranran/Clash/main/Clash/ClashRule_B.ini',
