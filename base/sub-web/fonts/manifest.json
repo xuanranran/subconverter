@@ -1,0 +1,33 @@
+{
+  "googleFontsRevision": "66928797f271fed5ee428544e7229685e2d90127",
+  "twemojiVersion": "v0.7.0",
+  "fonts": [
+    {
+      "file": "TwemojiMozilla.woff2",
+      "source": "https://github.com/mozilla/twemoji-colr/releases/download/v0.7.0/Twemoji.Mozilla.ttf",
+      "sourceSha256": "6d90152ee0d29e82fe2a87793af5aa4b7ad13e6538360889e141e81ed299ee8e",
+      "sha256": "d9717f18d7e4f5deaad672170c9b154ba9fd4ce69f3e2cfa1ed86af4b60a1ff5",
+      "size": 493128,
+      "family": "Twemoji Mozilla",
+      "glyphs": 1418
+    },
+    {
+      "file": "GoogleSans.woff2",
+      "source": "https://raw.githubusercontent.com/google/fonts/66928797f271fed5ee428544e7229685e2d90127/ofl/googlesans/GoogleSans%5BGRAD%2Copsz%2Cwght%5D.ttf",
+      "sourceSha256": "d0a87d835a944b8b40d0e82a5651bb59ab97b936a2aeed5946eb57e7b2a3a90a",
+      "sha256": "c16442410e76972a65c2e0b783bd9c87a78b3ca35e44fff5ea9d3f9d50d03653",
+      "size": 1584620,
+      "family": "Google Sans",
+      "glyphs": 3749
+    },
+    {
+      "file": "GoogleSans-Italic.woff2",
+      "source": "https://raw.githubusercontent.com/google/fonts/66928797f271fed5ee428544e7229685e2d90127/ofl/googlesans/GoogleSans-Italic%5BGRAD%2Copsz%2Cwght%5D.ttf",
+      "sourceSha256": "b6662abd2131cad1b248750149a7f2b644f871ebcc9af7fe4cd1135cd290b6d1",
+      "sha256": "c713409ea0e74ee2377761dc4105181d725cc541a7deb07e3442139d1aaa9f87",
+      "size": 1726176,
+      "family": "Google Sans",
+      "glyphs": 3281
+    }
+  ]
+}
