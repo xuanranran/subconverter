@@ -6,6 +6,8 @@ window.config = {
     { value: 'https://sub.miaoceo.com', text: 'subconverter', profile: 'standard' },
   ],
   shortUrl: 'https://i.miaoceo.com',
+  // 本地后端自动使用当前页面的协议、主机和端口；false 可隐藏这个选项。
+  localBackend: true,
   // Extended 的 Clash / Mihomo 可选 Aethersailor 模板；false 可关闭内置模板。
   aethersailorPresets: true,
   remoteConfigOptions: [

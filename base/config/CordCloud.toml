@@ -29,11 +29,11 @@ match = "(..|...)(\\d\\d\\d\\d|\\d\\d\\d)(\\|)(Azure|HKT|CN2GIA)"
 replace = "$1$4$2"
 
 [[node_pref.rename_node]]
-match = "((^CordCloud - )|(关注TG@txwl666)|(一元机场:ssrsub.de)|(机场推荐:dafei.de)|(机场推荐:)|(FIBERSTATE LLC)|(PCCW IMS)|(PCCW IMS LIMITED))"
+match = "(?:^CordCloud - |关注TG@txwl666|一元机场:ssrsub\\.de|机场推荐:dafei\\.de|机场推荐:|FIBERSTATE LLC|PCCW IMS(?: LIMITED)?)"
 replace = ""
 
 [[node_pref.rename_node]]
-match = "(标准)|(标准线路)|(线路)|(中转)|(直连)|(80端口)|(V\\d-)|((IEPL)|(IEPL专线)|(IPLC)|(IPLC专线))|(IPV6)|((海外\\|新疆专用))|((\u6d77\u5916\\|\u65b0\u7586\u4e13\u7528)|(CLOUD))"
+match = "(?:标准线路|线路|标准|中转|直连|80端口|V\\d-|IEPL(?:专线)?|IPLC(?:专线)?|IPV6|海外\\|新疆专用|\u6d77\u5916\\|\u65b0\u7586\u4e13\u7528|CLOUD)"
 replace = ""
 
 [[node_pref.rename_node]]
@@ -54,87 +54,87 @@ replace = "$1 $2"
 
 # [[node_pref.rename_node]]
 # match = "(「|\u300c)(\\p{RI}\\p{RI})(」|\u300d)"
-# replace = "$2 "
+# replace = "$2"
 
 [[node_pref.rename_node]]
-match = "((CN\\d•)|^)(⓪|❶|❷|❸|❻)(TJ\\.|gR\\.|V2\\.|H2\\.|SS\\.)"
+match = "(?:CN\\d•|HK🔛|US🔛|^)(?:⓪|❶|❷|❸|❻)(?:TJ\\.|gR\\.|V2\\.|H2\\.|SS\\.)"
 replace = ""
 
 [[node_pref.rename_node]]
-match = "(商宽)|(\\d组)|(--)|(◆)"
+match = "(?:商宽|\\d组|--|◆)"
 replace = ""
 
 [[node_pref.rename_node]]
-match = "^(.*)(?i:\\bHK[G]?\\d*\\b|Hong.*?Kong|\\bHKT\\d*\\b|\\bHKBN\\d*\\b|\\bHGC\\d*\\b|\\bWTT\\d*\\b|\\bCMI\\d*\\b|\\bHK\\d*\\b)([\u4e00-\u9fa5].*|\\d*)"
-replace = "🇭🇰 香港$2"
+match = "^.*(?i:\\b(?:HKG?|HKT|HKBN|HGC|WTT|CMI)\\d*\\b|Hong.*?Kong)([\u4e00-\u9fa5].*|\\d*)"
+replace = "🇭🇰 香港$1"
 
 [[node_pref.rename_node]]
-match = "^((「|\u300c)(🇭🇰)(」|\u300d))(.*)"
-replace = "🇭🇰 香港$5"
+match = "^(?:「|\u300c)🇭🇰(?:」|\u300d)(.*)"
+replace = "🇭🇰 香港$1"
 
 [[node_pref.rename_node]]
-match = "^(🇺🇸\\s*)?((?i:\\bUS[A]?\\d*\\b)|((「|\\u300c)(🇺🇸)(」|\\u300d)))\\s*(.*)"
-replace = "🇺🇸 美国$7"
+match = "^(?:🇺🇸\\s*)?(?:(?i:\\bUS[A]?\\d*\\b)|(?:「|\u300c)🇺🇸(?:」|\u300d))\\s*(.*)"
+replace = "🇺🇸 美国$1"
 
 [[node_pref.rename_node]]
-match = "^(🇯🇵\\s*)?((?i:\\bJP[N]?\\d*\\b)|((「|\\u300c)(🇯🇵)(」|\\u300d)))\\s*(.*)"
-replace = "🇯🇵 日本$7"
+match = "^(?:🇯🇵\\s*)?(?:(?i:\\bJP[N]?\\d*\\b)|(?:「|\u300c)🇯🇵(?:」|\u300d))\\s*(.*)"
+replace = "🇯🇵 日本$1"
 
 [[node_pref.rename_node]]
-match = "^(🇹🇼\\s*)?((?i:\\bTW[N]?\\d*\\b)|((「|\\u300c)(🇹🇼)(」|\\u300d)))\\s*(.*)"
-replace = "🇹🇼 台湾$7"
+match = "^(?:🇹🇼\\s*)?(?:(?i:\\bTW[N]?\\d*\\b)|(?:「|\u300c)🇹🇼(?:」|\u300d))\\s*(.*)"
+replace = "🇹🇼 台湾$1"
 
 [[node_pref.rename_node]]
-match = "^(🇲🇴\\s*)?((?i:\\bMO\\d*\\b)|((「|\\u300c)(🇲🇴)(」|\\u300d)))\\s*(.*)"
-replace = "🇲🇴 澳门$7"
+match = "^(?:🇲🇴\\s*)?(?:(?i:\\bMO\\d*\\b)|(?:「|\u300c)🇲🇴(?:」|\u300d))\\s*(.*)"
+replace = "🇲🇴 澳门$1"
 
 [[node_pref.rename_node]]
-match = "^(🇸🇬\\s*)?((?i:\\bSG[P]?\\d*\\b)|((「|\\u300c)(🇸🇬)(」|\\u300d)))\\s*(.*)"
-replace = "🇸🇬 新加坡$7"
+match = "^(?:🇸🇬\\s*)?(?:(?i:\\bSG[P]?\\d*\\b)|(?:「|\u300c)🇸🇬(?:」|\u300d))\\s*(.*)"
+replace = "🇸🇬 新加坡$1"
 
 [[node_pref.rename_node]]
 match = "^(?i:\\bRU[S]?\\d*\\b)(.*)"
-replace = "俄罗斯$2"
+replace = "🇷🇺 俄罗斯$2"
 
 [[node_pref.rename_node]]
 match = "^(\\bT[U]R\\b)(.*)"
-replace = "土耳其$2"
+replace = "🇹🇷 土耳其$2"
 
 [[node_pref.rename_node]]
-match = "^(🇬🇧\\s*)?((?i:\\bUK\\d*\\b|\\bGB[R]?\\d*\\b)|((「|\\u300c)(🇬🇧)(」|\\u300d)))\\s*(.*)"
-replace = "🇬🇧 英国$7"
+match = "^(?:🇬🇧\\s*)?(?:(?i:\\bUK\\d*\\b|\\bGB[R]?\\d*\\b)|(?:「|\u300c)🇬🇧(?:」|\u300d))\\s*(.*)"
+replace = "🇬🇧 英国$1"
 
 [[node_pref.rename_node]]
-match = "^(🇰🇷\\s*)?((?i:(\\b(?<!North\\s)\\bK(orea|OR|R)\\s?\\d*))|((「|\\u300c)(🇰🇷)(」|\\u300d)))\\s*(.*)"
-replace = "🇰🇷 韩国$8"
+match = "^(?:🇰🇷\\s*)?(?:(?i:(?<!North\\s)\\bK(?:orea|OR|R)\\s?\\d*)|(?:「|\u300c)🇰🇷(?:」|\u300d))\\s*(.*)"
+replace = "🇰🇷 韩国$1"
 
 [[node_pref.rename_node]]
-match = "^(🇫🇷\\s*)?((?i:\\bFR[A]?\\d*\\b)|((「|\\u300c)(🇫🇷)(」|\\u300d)))\\s*(.*)"
-replace = "🇫🇷 法国$7"
+match = "^(?:🇫🇷\\s*)?(?:(?i:\\bFR[A]?\\d*\\b)|(?:「|\u300c)🇫🇷(?:」|\u300d))\\s*(.*)"
+replace = "🇫🇷 法国$1"
 
 [[node_pref.rename_node]]
-match = "^(🇨🇦\\s*)?((?i:\\bCA[N]?\\d*\\b)|((「|\\u300c)(🇨🇦)(」|\\u300d)))\\s*(.*)"
-replace = "🇨🇦 加拿大$7"
+match = "^(?:🇨🇦\\s*)?(?:(?i:\\bCA[N]?\\d*\\b)|(?:「|\u300c)🇨🇦(?:」|\u300d))\\s*(.*)"
+replace = "🇨🇦 加拿大$1"
 
 [[node_pref.rename_node]]
-match = "^(🇦🇺\\s*)?((?i:\\bAU[S]?\\d*\\b)|((「|\\u300c)(🇦🇺)(」|\\u300d)))\\s*(.*)"
-replace = "🇦🇺 澳大利亚$7"
+match = "^(?:🇦🇺\\s*)?(?:(?i:\\bAU[S]?\\d*\\b)|(?:「|\u300c)🇦🇺(?:」|\u300d))\\s*(.*)"
+replace = "🇦🇺 澳大利亚$1"
 
 [[node_pref.rename_node]]
-match = "^(🇨🇳\\s*)?((?i:\\bC[H]?N\\b)|((「|\\u300c)(🇨🇳)(」|\\u300d)))\\s*(.*)"
-replace = "🇨🇳 中国$7"
+match = "^(?:🇨🇳\\s*)?(?:(?i:\\bC[H]?N\\b)|(?:「|\u300c)🇨🇳(?:」|\u300d))\\s*(.*)"
+replace = "🇨🇳 中国$1"
 
 [[node_pref.rename_node]]
 match = "^(\\bRO\\d*\\b)(.*)"
-replace = "罗马尼亚$2"
+replace = "🇷🇴 罗马尼亚$2"
 
 [[node_pref.rename_node]]
 match = "^(\\bBR\\d*\\b)(.*)"
-replace = "巴西$2"
+replace = "🇧🇷 巴西$2"
 
 [[node_pref.rename_node]]
-match = "^(🇪🇸\\s*)?((?i:\\bES[P]?\\d*\\b)|((「|\\u300c)(🇪🇸)(」|\\u300d)))\\s*(.*)"
-replace = "🇪🇸 西班牙$7"
+match = "^(?:🇪🇸\\s*)?(?:(?i:\\bES[P]?\\d*\\b)|(?:「|\u300c)🇪🇸(?:」|\u300d))\\s*(.*)"
+replace = "🇪🇸 西班牙$1"
 
 [[node_pref.rename_node]]
 match = "移动"
@@ -153,11 +153,11 @@ match = "深港专线"
 replace = "深港"
 
 [[node_pref.rename_node]]
-match = "(转)"
+match = "转"
 replace = "▷"
 
 [[node_pref.rename_node]]
-match = "((NF)|(NF\\*)|(BBC)|(abema)|(动画疯)|(Netflix)|(動畫瘋)|(Hulu)|(\\[注册Netflix\\])|(HBO)|(TVB)|(D\\+)|(Disney)|(Yp)|(Youtube)|(Y2B P)|(AI)|(解锁流媒体)|(原生IP)|(原生)|( NF )|( D\\+ )|(流媒体)|(-M)|(解锁)|(家宽))"
+match = "(?:NF|NF\\*|BBC|abema|动画疯|Netflix|netflix_|動畫瘋|Hulu|\\[注册Netflix\\]|HBO|TVB|D\\+|Disney|disney_|Yp|Youtube|Y2B P|AI|解锁流媒体|原生IP|原生| NF | D\\+ |流媒体|-M|解锁|家宽)"
 replace = "[M]"
 
 [[node_pref.rename_node]]
@@ -166,10 +166,10 @@ replace = "[M]"
 
 [[node_pref.rename_node]]
 match = "(\\w+|[\u4e00-\u9fa5]+)\\s\\1"
-replace = "$1 "
+replace = "$1"
 
 [[node_pref.rename_node]]
-match = "((?:\\p{RI}{2})|[\\x{2600}-\\x{27BF}\\x{1F300}-\\x{1F5FF}\\x{1F600}-\\x{1F64F}\\x{1F680}-\\x{1F6FF}\\x{1F900}-\\x{1F9FF}\\x{1FA70}-\\x{1FAFF}])\\1+"
+match = "(\\p{RI}{2}|[\\x{2600}-\\x{27BF}\\x{1F300}-\\x{1F5FF}\\x{1F600}-\\x{1F64F}\\x{1F680}-\\x{1F6FF}\\x{1F900}-\\x{1F9FF}\\x{1FA70}-\\x{1FAFF}])\\1+"
 replace = "$1"
 
 [[node_pref.rename_node]]
@@ -496,6 +496,10 @@ emoji = "🇷🇴"
 [[emojis.emoji]]
 match = "((^🇸🇦)|(\\bSA(?:[-_\\s]?\\d+|_)?\\b)|(Arabia)|(沙特))"
 emoji = "🇸🇦"
+
+[[emojis.emoji]]
+match = "((^🇸🇨)|(\\bSC(?:[-_\\s]?\\d+|_)?\\b)|(Seychelles)|(塞舌尔))"
+emoji = "🇸🇨"
 
 [[emojis.emoji]]
 match = "((^🇸🇪)|(\\bSE(?:[-_\\s]?\\d+|_)?\\b)|(Sweden)|(瑞典))"
