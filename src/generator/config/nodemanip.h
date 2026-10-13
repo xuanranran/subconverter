@@ -25,6 +25,7 @@ struct parse_settings
     bool authorized = false;
     string_icase_map *request_header = nullptr;
     std::string *custom_user_agent = nullptr;
+    std::string *age_secret_key = nullptr;
 #ifndef NO_JS_RUNTIME
     qjs::Runtime *js_runtime = nullptr;
     qjs::Context *js_context = nullptr;

@@ -1,0 +1,6 @@
+.git
+build
+subconverter
+venv
+tmp
+**/__pycache__

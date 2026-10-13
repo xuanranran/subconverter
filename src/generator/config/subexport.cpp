@@ -29,7 +29,65 @@ extern string_array ss_ciphers, ssr_ciphers;
 
 const string_array clashr_protocols = {"origin", "auth_sha1_v4", "auth_aes128_md5", "auth_aes128_sha1", "auth_chain_a", "auth_chain_b"};
 const string_array clashr_obfs = {"plain", "http_simple", "http_post", "random_head", "tls1.2_ticket_auth", "tls1.2_ticket_fastauth"};
-const string_array clash_ssr_ciphers = {"rc4-md5", "aes-128-ctr", "aes-192-ctr", "aes-256-ctr", "aes-128-cfb", "aes-192-cfb", "aes-256-cfb", "chacha20-ietf", "xchacha20", "none"};
+const string_array clash_ssr_ciphers = {"rc4", "rc4-md5", "aes-128-ctr", "aes-192-ctr", "aes-256-ctr", "aes-128-cfb", "aes-192-cfb", "aes-256-cfb", "bf-cfb", "camellia-128-cfb", "camellia-192-cfb", "camellia-256-cfb", "cast5-cfb", "chacha20", "chacha20-ietf", "salsa20", "xchacha20", "none"};
+
+// QX tls-alpn hex encoding: each ALPN = length byte + ASCII bytes, all hex-encoded
+static std::string alpnListToHex(const string_array &alpnList)
+{
+    static const char hex[] = "0123456789abcdef";
+    std::string result;
+    for(const auto &alpn : alpnList)
+    {
+        result += hex[(unsigned char)alpn.size() >> 4];
+        result += hex[(unsigned char)alpn.size() & 0x0f];
+        for(unsigned char c : alpn)
+        {
+            result += hex[c >> 4];
+            result += hex[c & 0x0f];
+        }
+    }
+    return result;
+}
+
+static void applyEncodedHeaders(const std::string &encoded, YAML::Node headersNode)
+{
+    if(encoded.empty())
+        return;
+    const auto pairs = split(encoded, ";");
+    for(const auto &pair : pairs)
+    {
+        if(pair.empty())
+            continue;
+        const auto pos = pair.find('=');
+        if(pos == std::string::npos)
+            continue;
+        const auto key = urlDecode(pair.substr(0, pos));
+        const auto value = urlDecode(pair.substr(pos + 1));
+        if(key.empty())
+            continue;
+        headersNode[key] = value;
+    }
+}
+
+static void applyEncodedHeadersMultiValue(const std::string &encoded, YAML::Node headersNode)
+{
+    if(encoded.empty())
+        return;
+    const auto pairs = split(encoded, ";");
+    for(const auto &pair : pairs)
+    {
+        if(pair.empty())
+            continue;
+        const auto pos = pair.find('=');
+        if(pos == std::string::npos)
+            continue;
+        const auto key = urlDecode(pair.substr(0, pos));
+        const auto value = urlDecode(pair.substr(pos + 1));
+        if(key.empty())
+            continue;
+        headersNode[key].push_back(value);
+    }
+}
 
 std::string vmessLinkConstruct(const std::string &remarks, const std::string &add, const std::string &port, const std::string &type, const std::string &id, const std::string &aid, const std::string &net, const std::string &path, const std::string &host, const std::string &tls, const std::string &sni = "", const std::string &alpn = "", const std::string &fp = "", const std::string &skip_cert_verify = "", const std::string &udp = "", const std::string &tfo = "", const std::string &ip_version = "", const std::string &packet_encoding = "", const std::string &authenticated_length = "", const std::string &global_padding = "", const std::string &ech_enable = "", const std::string &ech_config = "", const std::string &client_fingerprint = "")
 {
@@ -198,10 +256,16 @@ bool applyMatcher(const std::string &rule, std::string &real_rule, const Proxy &
         {ProxyType::Masque,       "MASQUE"},
         {ProxyType::TUIC, "TUIC"},
         {ProxyType::AnyTLS, "ANYTLS"},
+        {ProxyType::OpenVPN, "OPENVPN"},
+        {ProxyType::SSH, "SSH"},
+        {ProxyType::Tailscale, "TAILSCALE"},
+        {ProxyType::ZeroTier, "ZEROTIER"},
         {ProxyType::VLESS, "VLESS"},
         {ProxyType::Mieru, "MIERU"},
         {ProxyType::Sudoku, "SUDOKU"},
-        {ProxyType::TrustTunnel,  "TRUSTTUNNEL"}
+        {ProxyType::TrustTunnel,  "TRUSTTUNNEL"},
+        {ProxyType::ShadowQuic, "SHADOWQUIC"},
+        {ProxyType::EasyTier, "EASYTIER"}
     };
     if(startsWith(rule, "!!GROUP="))
     {
@@ -244,7 +308,7 @@ bool applyMatcher(const std::string &rule, std::string &real_rule, const Proxy &
 void processRemark(std::string &remark, const string_array &remarks_list, bool proc_comma = true)
 {
     // Replace every '=' with '-' in the remark string to avoid parse errors from the clients.
-    //     Surge is tested to yield an error when handling '=' in the remark string, 
+    //     Surge is tested to yield an error when handling '=' in the remark string,
     //     not sure if other clients have the same problem.
     std::replace(remark.begin(), remark.end(), '=', '-');
 
@@ -354,7 +418,7 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
         if(!x.UnderlyingProxy.empty())
             singleproxy["dialer-proxy"] = x.UnderlyingProxy;
         singleproxy["name"] = x.Remark;
-        singleproxy["server"] = x.Hostname;
+        singleproxy["server"] = trimOf(trimOf(x.Hostname, '['), ']');
         singleproxy["port"] = x.Port;
         YAML::Node smuxNode;
         std::string sni, fingerprint, clientFingerprint, headers_v2ray, headers_gost;
@@ -390,10 +454,27 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                     singleproxy["plugin-opts"]["skip-cert-verify"] = x.AllowInsecure.get();
                 else if(!scv.is_undef())
                     singleproxy["plugin-opts"]["skip-cert-verify"] = scv.get();
+                {
+                    std::string name_cert_verify = getUrlArg(pluginopts, "name-cert-verify");
+                    if(!name_cert_verify.empty())
+                        singleproxy["plugin-opts"]["name-cert-verify"] = name_cert_verify;
+                }
                 if(!x.Fingerprint.empty())
                     singleproxy["plugin-opts"]["fingerprint"] = x.Fingerprint;
                 if(!x.ServerName.empty())
                     singleproxy["plugin-opts"]["server_name"] = x.ServerName;
+                if(!x.Certificate.empty())
+                    singleproxy["plugin-opts"]["certificate"] = x.Certificate;
+                if(!x.CertificateKey.empty())
+                    singleproxy["plugin-opts"]["private-key"] = x.CertificateKey;
+                {
+                    std::string certificate = getUrlArg(pluginopts, "certificate");
+                    if(!certificate.empty())
+                        singleproxy["plugin-opts"]["certificate"] = certificate;
+                    std::string private_key = getUrlArg(pluginopts, "private-key");
+                    if(!private_key.empty())
+                        singleproxy["plugin-opts"]["private-key"] = private_key;
+                }
                 v2ray_http_upgrade = getUrlArg(pluginopts, "v2ray-http-upgrade");
                 if(!v2ray_http_upgrade.empty())
                     singleproxy["plugin-opts"]["v2ray-http-upgrade"] = v2ray_http_upgrade != "false" && v2ray_http_upgrade != "0";
@@ -406,6 +487,13 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                         singleproxy["plugin-opts"]["ech-opts"]["enable"] = x.EchEnable.get();
                     if(!x.EchConfig.empty())
                         singleproxy["plugin-opts"]["ech-opts"]["config"] = x.EchConfig;
+                    if(!x.EchQueryServerName.empty())
+                        singleproxy["plugin-opts"]["ech-opts"]["query-server-name"] = x.EchQueryServerName;
+                }
+                {
+                    std::string query_server_name = getUrlArg(pluginopts, "ech-query-server-name");
+                    if(!query_server_name.empty())
+                        singleproxy["plugin-opts"]["ech-opts"]["query-server-name"] = query_server_name;
                 }
                 {
                     std::string headers_str = getUrlArg(pluginopts, "headers");
@@ -462,6 +550,27 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 fingerprint = getUrlArg(pluginopts, "fingerprint");
                 if(!fingerprint.empty())
                     singleproxy["plugin-opts"]["fingerprint"] = fingerprint;
+                if(!x.Fingerprint.empty())
+                    singleproxy["plugin-opts"]["fingerprint"] = x.Fingerprint;
+                if(!scv.is_undef())
+                    singleproxy["plugin-opts"]["skip-cert-verify"] = scv.get();
+                {
+                    std::string name_cert_verify = getUrlArg(pluginopts, "name-cert-verify");
+                    if(!name_cert_verify.empty())
+                        singleproxy["plugin-opts"]["name-cert-verify"] = name_cert_verify;
+                }
+                if(!x.Certificate.empty())
+                    singleproxy["plugin-opts"]["certificate"] = x.Certificate;
+                if(!x.CertificateKey.empty())
+                    singleproxy["plugin-opts"]["private-key"] = x.CertificateKey;
+                {
+                    std::string certificate = getUrlArg(pluginopts, "certificate");
+                    if(!certificate.empty())
+                        singleproxy["plugin-opts"]["certificate"] = certificate;
+                    std::string private_key = getUrlArg(pluginopts, "private-key");
+                    if(!private_key.empty())
+                        singleproxy["plugin-opts"]["private-key"] = private_key;
+                }
                 clientFingerprint = getUrlArg(pluginopts, "client-fingerprint");
                 if(!clientFingerprint.empty())
                     singleproxy["plugin-opts"]["client-fingerprint"] = clientFingerprint;
@@ -475,6 +584,11 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["plugin-opts"]["mux"] = pluginopts.find("mux") != std::string::npos;
                 if(!scv.is_undef())
                     singleproxy["plugin-opts"]["skip-cert-verify"] = scv.get();
+                {
+                    std::string name_cert_verify = getUrlArg(pluginopts, "name-cert-verify");
+                    if(!name_cert_verify.empty())
+                        singleproxy["plugin-opts"]["name-cert-verify"] = name_cert_verify;
+                }
                 fingerprint = getUrlArg(pluginopts, "fingerprint");
                 if(!fingerprint.empty())
                     singleproxy["plugin-opts"]["fingerprint"] = fingerprint;
@@ -482,6 +596,18 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                     singleproxy["plugin-opts"]["fingerprint"] = x.Fingerprint;
                 if(!x.ServerName.empty())
                     singleproxy["plugin-opts"]["server_name"] = x.ServerName;
+                if(!x.Certificate.empty())
+                    singleproxy["plugin-opts"]["certificate"] = x.Certificate;
+                if(!x.CertificateKey.empty())
+                    singleproxy["plugin-opts"]["private-key"] = x.CertificateKey;
+                {
+                    std::string certificate = getUrlArg(pluginopts, "certificate");
+                    if(!certificate.empty())
+                        singleproxy["plugin-opts"]["certificate"] = certificate;
+                    std::string private_key = getUrlArg(pluginopts, "private-key");
+                    if(!private_key.empty())
+                        singleproxy["plugin-opts"]["private-key"] = private_key;
+                }
                 headers_gost = getUrlArg(pluginopts, "headers");
                 if(!headers_gost.empty())
                 {
@@ -519,6 +645,38 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                     std::string restls_script = getUrlArg(pluginopts, "restls-script");
                     if(!restls_script.empty())
                         singleproxy["plugin-opts"]["restls-script"] = restls_script;
+                }
+                fingerprint = getUrlArg(pluginopts, "fingerprint");
+                if(!fingerprint.empty())
+                    singleproxy["plugin-opts"]["fingerprint"] = fingerprint;
+                if(!x.Fingerprint.empty())
+                    singleproxy["plugin-opts"]["fingerprint"] = x.Fingerprint;
+                if(!scv.is_undef())
+                    singleproxy["plugin-opts"]["skip-cert-verify"] = scv.get();
+                {
+                    std::string name_cert_verify = getUrlArg(pluginopts, "name-cert-verify");
+                    if(!name_cert_verify.empty())
+                        singleproxy["plugin-opts"]["name-cert-verify"] = name_cert_verify;
+                }
+                {
+                    std::string force_tls12 = getUrlArg(pluginopts, "force-tls12");
+                    if(!force_tls12.empty())
+                        singleproxy["plugin-opts"]["force-tls12"] = force_tls12 != "false" && force_tls12 != "0";
+                }
+                break;
+            case "jls"_hash:
+                singleproxy["plugin"] = "jls";
+                singleproxy["plugin-opts"]["host"] = getUrlArg(pluginopts, "host");
+                singleproxy["plugin-opts"]["username"] = getUrlArg(pluginopts, "username");
+                singleproxy["plugin-opts"]["password"] = getUrlArg(pluginopts, "password");
+                {
+                    std::string alpn_str = getUrlArg(pluginopts, "alpn");
+                    if(!alpn_str.empty())
+                    {
+                        auto alpn_items = split(alpn_str, ",");
+                        for(const auto &item : alpn_items)
+                            singleproxy["plugin-opts"]["alpn"].push_back(item);
+                    }
                 }
                 break;
             case "kcptun"_hash:
@@ -578,24 +736,32 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 if(x.TLSSecure)
                     singleproxy["tls"] = true;
             }
-            if(!scv.is_undef() && scv.get() && x.Plugin != "v2ray-plugin" && x.Plugin != "shadow-tls" && x.Plugin != "gost-plugin" && x.Plugin != "restls" && x.Plugin != "kcptun")
+            if(!scv.is_undef() && x.Plugin != "v2ray-plugin" && x.Plugin != "shadow-tls" && x.Plugin != "gost-plugin" && x.Plugin != "restls" && x.Plugin != "kcptun")
                 singleproxy["skip-cert-verify"] = scv.get();
             if(!x.Fingerprint.empty() && x.Plugin != "v2ray-plugin" && x.Plugin != "shadow-tls" && x.Plugin != "gost-plugin" && x.Plugin != "restls" && x.Plugin != "kcptun")
                 singleproxy["fingerprint"] = x.Fingerprint;
             if(!x.ClientFingerprint.empty() && x.Plugin != "v2ray-plugin" && x.Plugin != "gost-plugin")
                 singleproxy["client-fingerprint"] = x.ClientFingerprint;
-            if(udp)
-                singleproxy["udp"] = true;
+            if(!udp.is_undef())
+                singleproxy["udp"] = udp.get();
             if(!tfo.is_undef())
                 singleproxy["tfo"] = tfo.get();
-            if(!x.IPVersion.empty() && x.Plugin != "v2ray-plugin" && x.Plugin != "shadow-tls" && x.Plugin != "gost-plugin" && x.Plugin != "restls" && x.Plugin != "kcptun")
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.IPVersion.empty())
                 singleproxy["ip-version"] = x.IPVersion;
-            if(!x.UDPoverTCP.is_undef() && x.UDPoverTCP.get() && x.Plugin != "v2ray-plugin" && x.Plugin != "shadow-tls" && x.Plugin != "gost-plugin" && x.Plugin != "restls" && x.Plugin != "kcptun")
+            if(!x.UDPoverTCP.is_undef() && x.UDPoverTCP.get())
                 singleproxy["udp-over-tcp"] = x.UDPoverTCP.get();
             if(x.UDPOverTCPVersion > 0)
                 singleproxy["udp-over-tcp-version"] = x.UDPOverTCPVersion;
             if(!x.SmuxEnabled.is_undef())
                 smuxNode["enabled"] = x.SmuxEnabled.get();
+            if(!x.SmuxProtocol.empty())
+                smuxNode["protocol"] = x.SmuxProtocol;
             if(x.SmuxMaxConnections > 0)
                 smuxNode["max-connections"] = x.SmuxMaxConnections;
             if(x.SmuxMinStreams > 0)
@@ -630,16 +796,36 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["client-fingerprint"] = x.ClientFingerprint;
             else if(x.Flow == "xtls-rprx-vision")
                 singleproxy["client-fingerprint"] = "chrome";
+            if(!x.Certificate.empty())
+                singleproxy["certificate"] = x.Certificate;
+            if(!x.CertificateKey.empty())
+                singleproxy["private-key"] = x.CertificateKey;
+            if(!x.UDP.is_undef())
+                singleproxy["udp"] = x.UDP.get();
+            else if(!udp.is_undef())
+                singleproxy["udp"] = udp.get();
             if(!x.TCPFastOpen.is_undef())
                 singleproxy["tfo"] = x.TCPFastOpen.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
             if(!x.IPVersion.empty())
                 singleproxy["ip-version"] = x.IPVersion;
+            if(!x.NameCertVerify.empty())
+                singleproxy["name-cert-verify"] = x.NameCertVerify;
             if(!x.AuthenticatedLength.is_undef())
                 singleproxy["authenticated-length"] = x.AuthenticatedLength.get();
             if(!x.GlobalPadding.is_undef())
                 singleproxy["global-padding"] = x.GlobalPadding.get();
             if(!x.PacketEncoding.empty())
                 singleproxy["packet-encoding"] = x.PacketEncoding;
+            if(!x.PacketAddr.is_undef())
+                singleproxy["packet-addr"] = x.PacketAddr.get();
+            if(!x.XUDP.is_undef())
+                singleproxy["xudp"] = x.XUDP.get();
             if(!x.AlpnList.empty())
             {
                 for(auto &item : x.AlpnList)
@@ -651,13 +837,38 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
             {
                 singleproxy["reality-opts"]["public-key"] = x.PublicKey;
                 singleproxy["reality-opts"]["short-id"] = x.ShortID;
-                singleproxy["reality-opts"]["short-id"].SetTag("str");
                 if(!x.ServerName.empty())
                     singleproxy["reality-opts"]["servername"] = x.ServerName;
                 else if(!x.SNI.empty())
                     singleproxy["reality-opts"]["servername"] = x.SNI;
                 if(!x.SpiderX.empty())
                     singleproxy["reality-opts"]["spiderX"] = x.SpiderX;
+                if(!x.SupportX25519Mlkem768.is_undef())
+                    singleproxy["reality-opts"]["support-x25519mlkem768"] = x.SupportX25519Mlkem768.get();
+            }
+            if(!x.TLSMirrorPrimaryKey.empty())
+            {
+                singleproxy["tlsmirror-opts"]["primary-key"] = x.TLSMirrorPrimaryKey;
+                if(!x.TLSMirrorExplicitNonceCipherSuites.empty())
+                {
+                    for(const auto &cs : x.TLSMirrorExplicitNonceCipherSuites)
+                        singleproxy["tlsmirror-opts"]["explicit-nonce-ciphersuites"].push_back(cs);
+                }
+                if(x.TLSMirrorDeferBaseNs > 0 || x.TLSMirrorDeferRandomNs > 0)
+                {
+                    if(x.TLSMirrorDeferBaseNs > 0)
+                        singleproxy["tlsmirror-opts"]["defer-instance-derived-write-time"]["base-nanoseconds"] = x.TLSMirrorDeferBaseNs;
+                    if(x.TLSMirrorDeferRandomNs > 0)
+                        singleproxy["tlsmirror-opts"]["defer-instance-derived-write-time"]["uniform-random-multiplier-nanoseconds"] = x.TLSMirrorDeferRandomNs;
+                }
+                if(!x.TLSMirrorTransportPadding.is_undef())
+                    singleproxy["tlsmirror-opts"]["transport-layer-padding"]["enabled"] = x.TLSMirrorTransportPadding.get();
+                if(!x.TLSMirrorConnectionEnrolment.empty())
+                    singleproxy["tlsmirror-opts"]["connection-enrolment"] = YAML::Load(x.TLSMirrorConnectionEnrolment);
+                if(!x.TLSMirrorEmbeddedTrafficGenerator.empty())
+                    singleproxy["tlsmirror-opts"]["embedded-traffic-generator"] = YAML::Load(x.TLSMirrorEmbeddedTrafficGenerator);
+                if(!x.TLSMirrorSequenceWatermarking.is_undef())
+                    singleproxy["tlsmirror-opts"]["sequence-watermarking-enabled"] = x.TLSMirrorSequenceWatermarking.get();
             }
             switch(hash_(x.TransferProtocol))
             {
@@ -671,6 +882,7 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                         singleproxy["ws-opts"]["path"] = x.WsPath;
                     else
                         singleproxy["ws-opts"]["path"] = x.Path;
+                    applyEncodedHeaders(x.WsHeadersMap, singleproxy["ws-opts"]["headers"]);
                     if(!x.WsHeaders.empty())
                         singleproxy["ws-opts"]["headers"]["Host"] = x.WsHeaders;
                     else if(!x.Host.empty())
@@ -695,47 +907,62 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                         singleproxy["ws-headers"]["Host"] = x.Host;
                     if(!x.Edge.empty())
                         singleproxy["ws-headers"]["Edge"] = x.Edge;
-                    singleproxy["ws-opts"]["path"] = x.Path;
-                    if(!x.Host.empty())
-                        singleproxy["ws-opts"]["headers"]["Host"] = x.Host;
-                    if(!x.Edge.empty())
-                        singleproxy["ws-opts"]["headers"]["Edge"] = x.Edge;
                 }
-                if(!x.EchEnable.is_undef() || !x.EchConfig.empty())
+                if(!x.EchEnable.is_undef() || !x.EchConfig.empty() || !x.EchQueryServerName.empty())
                 {
                     if(!x.EchEnable.is_undef())
                         singleproxy["ech-opts"]["enable"] = x.EchEnable.get();
                     if(!x.EchConfig.empty())
                         singleproxy["ech-opts"]["config"] = x.EchConfig;
+                    if(!x.EchQueryServerName.empty())
+                        singleproxy["ech-opts"]["query-server-name"] = x.EchQueryServerName;
                 }
                 break;
             case "http"_hash:
                 singleproxy["network"] = x.TransferProtocol;
-                singleproxy["http-opts"]["method"] = "GET";
-                singleproxy["http-opts"]["path"].push_back(x.Path);
+                singleproxy["http-opts"]["method"] = x.HTTPOptsMethod.empty() ? "GET" : x.HTTPOptsMethod;
+                if(!x.HTTPOptsPaths.empty())
+                {
+                    for(const auto &item : x.HTTPOptsPaths)
+                        singleproxy["http-opts"]["path"].push_back(item);
+                }
+                else
+                {
+                    singleproxy["http-opts"]["path"].push_back(x.Path);
+                }
+                applyEncodedHeadersMultiValue(x.HTTPOptsHeaders, singleproxy["http-opts"]["headers"]);
                 if(!x.Host.empty())
                     singleproxy["http-opts"]["headers"]["Host"].push_back(x.Host);
                 if(!x.Edge.empty())
                     singleproxy["http-opts"]["headers"]["Edge"].push_back(x.Edge);
-                if(!x.EchEnable.is_undef() || !x.EchConfig.empty())
+                if(!x.EchEnable.is_undef() || !x.EchConfig.empty() || !x.EchQueryServerName.empty())
                 {
                     if(!x.EchEnable.is_undef())
                         singleproxy["ech-opts"]["enable"] = x.EchEnable.get();
                     if(!x.EchConfig.empty())
                         singleproxy["ech-opts"]["config"] = x.EchConfig;
+                    if(!x.EchQueryServerName.empty())
+                        singleproxy["ech-opts"]["query-server-name"] = x.EchQueryServerName;
                 }
                 break;
             case "h2"_hash:
                 singleproxy["network"] = x.TransferProtocol;
                 singleproxy["h2-opts"]["path"] = x.Path;
-                if(!x.Host.empty())
+                if(!x.H2Hosts.empty())
+                {
+                    for(const auto &item : x.H2Hosts)
+                        singleproxy["h2-opts"]["host"].push_back(item);
+                }
+                else if(!x.Host.empty())
                     singleproxy["h2-opts"]["host"].push_back(x.Host);
-                if(!x.EchEnable.is_undef() || !x.EchConfig.empty())
+                if(!x.EchEnable.is_undef() || !x.EchConfig.empty() || !x.EchQueryServerName.empty())
                 {
                     if(!x.EchEnable.is_undef())
                         singleproxy["ech-opts"]["enable"] = x.EchEnable.get();
                     if(!x.EchConfig.empty())
                         singleproxy["ech-opts"]["config"] = x.EchConfig;
+                    if(!x.EchQueryServerName.empty())
+                        singleproxy["ech-opts"]["query-server-name"] = x.EchQueryServerName;
                 }
                 break;
             case "grpc"_hash:
@@ -744,32 +971,102 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                     singleproxy["servername"] = x.ServerName;
                 else if(!x.Host.empty())
                     singleproxy["servername"] = x.Host;
-                singleproxy["grpc-opts"]["grpc-service-name"] = x.Path;
+                if(!x.GrpcServiceName.empty())
+                    singleproxy["grpc-opts"]["grpc-service-name"] = x.GrpcServiceName;
+                else
+                    singleproxy["grpc-opts"]["grpc-service-name"] = x.Path;
                 if(!x.GrpcUserAgent.empty())
                     singleproxy["grpc-opts"]["grpc-user-agent"] = x.GrpcUserAgent;
                 if(x.GrpcPingInterval > 0)
                     singleproxy["grpc-opts"]["ping-interval"] = (int)x.GrpcPingInterval;
-                if(!x.EchEnable.is_undef() || !x.EchConfig.empty())
+                if(x.GrpcMaxConnections > 0)
+                    singleproxy["grpc-opts"]["max-connections"] = (int)x.GrpcMaxConnections;
+                if(x.GrpcMinStreams > 0)
+                    singleproxy["grpc-opts"]["min-streams"] = (int)x.GrpcMinStreams;
+                if(x.GrpcMaxStreams > 0)
+                    singleproxy["grpc-opts"]["max-streams"] = (int)x.GrpcMaxStreams;
+                if(!x.EchEnable.is_undef() || !x.EchConfig.empty() || !x.EchQueryServerName.empty())
                 {
                     if(!x.EchEnable.is_undef())
                         singleproxy["ech-opts"]["enable"] = x.EchEnable.get();
                     if(!x.EchConfig.empty())
                         singleproxy["ech-opts"]["config"] = x.EchConfig;
+                    if(!x.EchQueryServerName.empty())
+                        singleproxy["ech-opts"]["query-server-name"] = x.EchQueryServerName;
                 }
                 break;
             case "quic"_hash:
                 singleproxy["network"] = x.TransferProtocol;
-                if(!x.QUICInitStreamReceiveWindow.empty())
-                    singleproxy["quic-opts"]["init-stream-receive-window"] = x.QUICInitStreamReceiveWindow;
-                if(!x.QUICMaxStreamReceiveWindow.empty())
-                    singleproxy["quic-opts"]["max-stream-receive-window"] = x.QUICMaxStreamReceiveWindow;
-                if(!x.QUICInitConnReceiveWindow.empty())
-                    singleproxy["quic-opts"]["init-conn-receive-window"] = x.QUICInitConnReceiveWindow;
-                if(!x.QUICMaxConnReceiveWindow.empty())
-                    singleproxy["quic-opts"]["max-conn-receive-window"] = x.QUICMaxConnReceiveWindow;
+                if(!x.QUICSecure.empty())
+                    singleproxy["quic-opts"]["security"] = x.QUICSecure;
+                else if(!x.Host.empty())
+                    singleproxy["quic-opts"]["security"] = x.Host;
+                if(!x.QUICSecret.empty())
+                    singleproxy["quic-opts"]["key"] = x.QUICSecret;
+                else if(!x.Path.empty())
+                    singleproxy["quic-opts"]["key"] = x.Path;
+                break;
+            case "mkcp"_hash:
+                singleproxy["network"] = x.TransferProtocol;
+                if(x.MKCPMtu > 0) singleproxy["mkcp-opts"]["mtu"] = x.MKCPMtu;
+                if(x.MKCPTTI > 0) singleproxy["mkcp-opts"]["tti"] = x.MKCPTTI;
+                if(x.MKCPUplinkCapacity > 0) singleproxy["mkcp-opts"]["uplink-capacity"] = x.MKCPUplinkCapacity;
+                if(x.MKCPDownlinkCapacity > 0) singleproxy["mkcp-opts"]["downlink-capacity"] = x.MKCPDownlinkCapacity;
+                if(x.MKCPCongestion) singleproxy["mkcp-opts"]["congestion"] = x.MKCPCongestion;
+                if(x.MKCPWriteBuffer > 0) singleproxy["mkcp-opts"]["write-buffer"] = x.MKCPWriteBuffer;
+                if(x.MKCPReadBuffer > 0) singleproxy["mkcp-opts"]["read-buffer"] = x.MKCPReadBuffer;
+                if(!x.MKCPSeed.empty()) singleproxy["mkcp-opts"]["seed"] = x.MKCPSeed;
+                if(!x.MKCPHeader.empty()) singleproxy["mkcp-opts"]["header"] = x.MKCPHeader;
+                break;
+            case "mekya"_hash:
+                singleproxy["network"] = x.TransferProtocol;
+                if(!x.MekyaURL.empty()) singleproxy["mekya-opts"]["url"] = x.MekyaURL;
+                if(x.MekyaMaxWriteDelay > 0) singleproxy["mekya-opts"]["max-write-delay"] = x.MekyaMaxWriteDelay;
+                if(x.MekyaMaxRequestSize > 0) singleproxy["mekya-opts"]["max-request-size"] = x.MekyaMaxRequestSize;
+                if(x.MekyaPollingIntervalInitial > 0) singleproxy["mekya-opts"]["polling-interval-initial"] = x.MekyaPollingIntervalInitial;
+                if(x.MekyaH2PoolSize > 0) singleproxy["mekya-opts"]["h2-pool-size"] = x.MekyaH2PoolSize;
+                if(x.MekyaMKCPMtu > 0) singleproxy["mekya-opts"]["kcp"]["mtu"] = x.MekyaMKCPMtu;
+                if(x.MekyaMKCPTTI > 0) singleproxy["mekya-opts"]["kcp"]["tti"] = x.MekyaMKCPTTI;
+                if(x.MekyaMKCPUplinkCapacity > 0) singleproxy["mekya-opts"]["kcp"]["uplink-capacity"] = x.MekyaMKCPUplinkCapacity;
+                if(x.MekyaMKCPDownlinkCapacity > 0) singleproxy["mekya-opts"]["kcp"]["downlink-capacity"] = x.MekyaMKCPDownlinkCapacity;
+                if(x.MekyaMKCPCongestion) singleproxy["mekya-opts"]["kcp"]["congestion"] = x.MekyaMKCPCongestion;
+                if(x.MekyaMKCPWriteBuffer > 0) singleproxy["mekya-opts"]["kcp"]["write-buffer"] = x.MekyaMKCPWriteBuffer;
+                if(x.MekyaMKCPReadBuffer > 0) singleproxy["mekya-opts"]["kcp"]["read-buffer"] = x.MekyaMKCPReadBuffer;
+                if(!x.MekyaMKCPSeed.empty()) singleproxy["mekya-opts"]["kcp"]["seed"] = x.MekyaMKCPSeed;
+                if(!x.MekyaMKCPHeader.empty()) singleproxy["mekya-opts"]["kcp"]["header"] = x.MekyaMKCPHeader;
                 break;
             default:
                 continue;
+            }
+            if(!x.EchEnable.is_undef() || !x.EchConfig.empty() || !x.EchQueryServerName.empty())
+            {
+                if(!x.EchEnable.is_undef())
+                    singleproxy["ech-opts"]["enable"] = x.EchEnable.get();
+                if(!x.EchConfig.empty())
+                    singleproxy["ech-opts"]["config"] = x.EchConfig;
+                if(!x.EchQueryServerName.empty())
+                    singleproxy["ech-opts"]["query-server-name"] = x.EchQueryServerName;
+            }
+            if(!x.ObfsPassword.empty() || x.ObfsVersion > 0)
+            {
+                if(x.ObfsVersion > 0)
+                {
+                    singleproxy["shadow-tls-opts"]["password"] = x.ObfsPassword;
+                    singleproxy["shadow-tls-opts"]["version"] = x.ObfsVersion;
+                }
+                else if(!x.ObfsVersionHint.empty() || !x.ObfsRestlsScript.empty())
+                {
+                    singleproxy["restls-opts"]["password"] = x.ObfsPassword;
+                    if(!x.ObfsVersionHint.empty())
+                        singleproxy["restls-opts"]["version-hint"] = x.ObfsVersionHint;
+                    if(!x.ObfsRestlsScript.empty())
+                        singleproxy["restls-opts"]["restls-script"] = x.ObfsRestlsScript;
+                }
+                else if(!x.ObfsUsername.empty())
+                {
+                    singleproxy["jls-opts"]["username"] = x.ObfsUsername;
+                    singleproxy["jls-opts"]["password"] = x.ObfsPassword;
+                }
             }
             break;
         case ProxyType::ShadowsocksR:
@@ -801,8 +1098,18 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["protocol-param"] = x.ProtocolParam;
                 singleproxy["obfs-param"] = x.OBFSParam;
             }
-            if(udp)
-                singleproxy["udp"] = true;
+            if(!udp.is_undef())
+                singleproxy["udp"] = udp.get();
+            if(!tfo.is_undef())
+                singleproxy["tfo"] = tfo.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
             break;
         case ProxyType::SOCKS5:
             singleproxy["type"] = "socks5";
@@ -828,12 +1135,22 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["certificate"] = x.Certificate;
             if(!x.CertificateKey.empty())
                 singleproxy["private-key"] = x.CertificateKey;
-            if(udp)
-                singleproxy["udp"] = true;
+            if(!udp.is_undef())
+                singleproxy["udp"] = udp.get();
             if(!x.IPVersion.empty())
                 singleproxy["ip-version"] = x.IPVersion;
             if(!x.UDPoverTCP.is_undef() && x.UDPoverTCP.get())
                 singleproxy["udp-over-tcp"] = x.UDPoverTCP.get();
+            if(!tfo.is_undef())
+                singleproxy["tfo"] = tfo.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.NameCertVerify.empty())
+                singleproxy["name-cert-verify"] = x.NameCertVerify;
             break;
         case ProxyType::HTTP:
         case ProxyType::HTTPS:
@@ -851,6 +1168,8 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["skip-cert-verify"] = scv.get();
             if(!x.SNI.empty())
                 singleproxy["sni"] = x.SNI;
+            else if(!x.ServerName.empty())
+                singleproxy["sni"] = x.ServerName;
             if(!x.Fingerprint.empty())
                 singleproxy["fingerprint"] = x.Fingerprint;
             if(!x.ClientFingerprint.empty())
@@ -858,21 +1177,36 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
             if(!x.Certificate.empty())
                 singleproxy["certificate"] = x.Certificate;
             if(!x.CertificateKey.empty())
-                singleproxy["certificate-key"] = x.CertificateKey;
-            if(udp)
-                singleproxy["udp"] = true;
+                singleproxy["private-key"] = x.CertificateKey;
+            if(!udp.is_undef())
+                singleproxy["udp"] = udp.get();
             if(!x.IPVersion.empty())
                 singleproxy["ip-version"] = x.IPVersion;
+            if(!tfo.is_undef())
+                singleproxy["tfo"] = tfo.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.NameCertVerify.empty())
+                singleproxy["name-cert-verify"] = x.NameCertVerify;
+            applyEncodedHeaders(x.HTTPHeaders, singleproxy["headers"]);
             break;
         case ProxyType::Trojan:
             singleproxy["type"] = "trojan";
             singleproxy["password"] = x.Password;
+            if(!x.Host.empty())
+                singleproxy["sni"] = x.Host;
+            else if(!x.ServerName.empty())
+                singleproxy["sni"] = x.ServerName;
+            if(!scv.is_undef())
+                singleproxy["skip-cert-verify"] = scv.get();
+            else if(!x.AllowInsecure.is_undef())
+                singleproxy["skip-cert-verify"] = x.AllowInsecure.get();
             if(std::all_of(x.Password.begin(), x.Password.end(), ::isdigit) && !x.Password.empty())
                 singleproxy["password"].SetTag("str");
-            if(!x.ServerName.empty())
-                singleproxy["sni"] = x.ServerName;
-            else if(!x.Host.empty())
-                singleproxy["sni"] = x.Host;
             if(!x.AlpnList.empty())
             {
                 for(auto &item : x.AlpnList)
@@ -884,18 +1218,15 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
             {
                 singleproxy["reality-opts"]["public-key"] = x.PublicKey;
                 singleproxy["reality-opts"]["short-id"] = x.ShortID;
-                singleproxy["reality-opts"]["short-id"].SetTag("str");
                 if(!x.ServerName.empty())
                     singleproxy["reality-opts"]["servername"] = x.ServerName;
                 else if(!x.SNI.empty())
                     singleproxy["reality-opts"]["servername"] = x.SNI;
                 if(!x.SpiderX.empty())
                     singleproxy["reality-opts"]["spiderX"] = x.SpiderX;
+                if(!x.SupportX25519Mlkem768.is_undef())
+                    singleproxy["reality-opts"]["support-x25519mlkem768"] = x.SupportX25519Mlkem768.get();
             }
-            if(!x.AllowInsecure.is_undef())
-                singleproxy["skip-cert-verify"] = x.AllowInsecure.get();
-            else if(!scv.is_undef())
-                singleproxy["skip-cert-verify"] = scv.get();
             if(!x.Fingerprint.empty())
                 singleproxy["fingerprint"] = x.Fingerprint;
             if(!x.ClientFingerprint.empty())
@@ -903,7 +1234,18 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
             if(!x.Certificate.empty())
                 singleproxy["certificate"] = x.Certificate;
             if(!x.CertificateKey.empty())
-                singleproxy["certificate-key"] = x.CertificateKey;
+                singleproxy["private-key"] = x.CertificateKey;
+            if(!x.EchEnable.is_undef() || !x.EchConfig.empty() || !x.EchQueryServerName.empty())
+            {
+                if(!x.EchEnable.is_undef())
+                    singleproxy["ech-opts"]["enable"] = x.EchEnable.get();
+                else
+                    singleproxy["ech-opts"]["enable"] = true;
+                if(!x.EchConfig.empty())
+                    singleproxy["ech-opts"]["config"] = x.EchConfig;
+                if(!x.EchQueryServerName.empty())
+                    singleproxy["ech-opts"]["query-server-name"] = x.EchQueryServerName;
+            }
             if(!x.Flow.empty())
                 singleproxy["flow"] = x.Flow;
             if(!x.FlowShow.is_undef())
@@ -944,6 +1286,12 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                     singleproxy["grpc-opts"]["grpc-user-agent"] = x.GrpcUserAgent;
                 if(x.GrpcPingInterval > 0)
                     singleproxy["grpc-opts"]["ping-interval"] = (int)x.GrpcPingInterval;
+                if(x.GrpcMaxConnections > 0)
+                    singleproxy["grpc-opts"]["max-connections"] = (int)x.GrpcMaxConnections;
+                if(x.GrpcMinStreams > 0)
+                    singleproxy["grpc-opts"]["min-streams"] = (int)x.GrpcMinStreams;
+                if(x.GrpcMaxStreams > 0)
+                    singleproxy["grpc-opts"]["max-streams"] = (int)x.GrpcMaxStreams;
                 break;
             case "ws"_hash:
                 singleproxy["network"] = x.TransferProtocol;
@@ -953,6 +1301,7 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                     singleproxy["ws-opts"]["path"] = x.WsPath;
                 else if(!x.Path.empty())
                     singleproxy["ws-opts"]["path"] = x.Path;
+                applyEncodedHeaders(x.WsHeadersMap, singleproxy["ws-opts"]["headers"]);
                 if(!x.WsHeaders.empty())
                     singleproxy["ws-opts"]["headers"]["Host"] = x.WsHeaders;
                 else if(!x.Host.empty())
@@ -971,10 +1320,41 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
             }
             if(!x.TCPFastOpen.is_undef())
                 singleproxy["tfo"] = x.TCPFastOpen.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.NameCertVerify.empty())
+                singleproxy["name-cert-verify"] = x.NameCertVerify;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
+            if(!udp.is_undef())
+                singleproxy["udp"] = udp.get();
+            if(!x.ObfsPassword.empty() || x.ObfsVersion > 0)
+            {
+                if(x.ObfsVersion > 0)
+                {
+                    singleproxy["shadow-tls-opts"]["password"] = x.ObfsPassword;
+                    singleproxy["shadow-tls-opts"]["version"] = x.ObfsVersion;
+                }
+                else if(!x.ObfsVersionHint.empty() || !x.ObfsRestlsScript.empty())
+                {
+                    singleproxy["restls-opts"]["password"] = x.ObfsPassword;
+                    if(!x.ObfsVersionHint.empty())
+                        singleproxy["restls-opts"]["version-hint"] = x.ObfsVersionHint;
+                    if(!x.ObfsRestlsScript.empty())
+                        singleproxy["restls-opts"]["restls-script"] = x.ObfsRestlsScript;
+                }
+                else if(!x.ObfsUsername.empty())
+                {
+                    singleproxy["jls-opts"]["username"] = x.ObfsUsername;
+                    singleproxy["jls-opts"]["password"] = x.ObfsPassword;
+                }
+            }
             break;
         case ProxyType::Snell:
-            if(x.SnellVersion >= 4)
-                continue;
             singleproxy["type"] = "snell";
             singleproxy["psk"] = x.Password;
             if(x.SnellVersion != 0)
@@ -984,9 +1364,57 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["obfs-opts"]["mode"] = x.OBFS;
                 if(!x.Host.empty())
                     singleproxy["obfs-opts"]["host"] = x.Host;
+                if(!x.ObfsPassword.empty())
+                    singleproxy["obfs-opts"]["password"] = x.ObfsPassword;
+                if(x.ObfsVersion > 0)
+                    singleproxy["obfs-opts"]["version"] = x.ObfsVersion;
+                if(!x.ObfsAlpn.empty())
+                {
+                    for(const auto &a : x.ObfsAlpn)
+                        singleproxy["obfs-opts"]["alpn"].push_back(a);
+                }
+                if(!x.ObfsFingerprint.empty())
+                    singleproxy["obfs-opts"]["fingerprint"] = x.ObfsFingerprint;
+                if(!x.ObfsCertificate.empty())
+                    singleproxy["obfs-opts"]["certificate"] = x.ObfsCertificate;
+                if(!x.ObfsPrivateKey.empty())
+                    singleproxy["obfs-opts"]["private-key"] = x.ObfsPrivateKey;
+                if(!x.ObfsSkipCertVerify.is_undef())
+                    singleproxy["obfs-opts"]["skip-cert-verify"] = x.ObfsSkipCertVerify.get();
+                if(!x.ObfsNameCertVerify.empty())
+                    singleproxy["obfs-opts"]["name-cert-verify"] = x.ObfsNameCertVerify;
+                if(!x.ObfsVersionHint.empty())
+                    singleproxy["obfs-opts"]["version-hint"] = x.ObfsVersionHint;
+                if(!x.ObfsRestlsScript.empty())
+                    singleproxy["obfs-opts"]["restls-script"] = x.ObfsRestlsScript;
+                if(!x.ObfsForceTls12.is_undef())
+                    singleproxy["obfs-opts"]["force-tls12"] = x.ObfsForceTls12.get();
+                if(!x.ObfsUsername.empty())
+                    singleproxy["obfs-opts"]["username"] = x.ObfsUsername;
             }
             if(std::all_of(x.Password.begin(), x.Password.end(), ::isdigit) && !x.Password.empty())
-                singleproxy["password"].SetTag("str");
+                singleproxy["psk"].SetTag("str");
+            if(!x.ClientFingerprint.empty())
+                singleproxy["client-fingerprint"] = x.ClientFingerprint;
+            if(x.SnellVersion >= 3)
+            {
+                if(!x.UDP.is_undef())
+                    singleproxy["udp"] = x.UDP.get();
+                else if(!udp.is_undef())
+                    singleproxy["udp"] = udp.get();
+            }
+            if(x.SnellVersion >= 4 && !x.Reuse.is_undef())
+                singleproxy["reuse"] = x.Reuse.get();
+            if(!tfo.is_undef())
+                singleproxy["tfo"] = tfo.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
             break;
         case ProxyType::WireGuard:
             singleproxy["type"] = "wireguard";
@@ -996,7 +1424,10 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
             if(!x.SelfIPv6.empty())
                 singleproxy["ipv6"] = x.SelfIPv6;
             if(!x.PreSharedKey.empty())
+            {
+                singleproxy["pre-shared-key"] = x.PreSharedKey;
                 singleproxy["preshared-key"] = x.PreSharedKey;
+            }
             if(!x.DnsServers.empty())
                 singleproxy["dns"] = x.DnsServers;
             if(x.Mtu > 0)
@@ -1004,7 +1435,7 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
             if(!x.AllowedIPs.empty())
                 singleproxy["allowed-ips"] = x.AllowedIPs;
             if(x.KeepAlive > 0)
-                singleproxy["keepalive"] = x.KeepAlive;
+                singleproxy["persistent-keepalive"] = x.KeepAlive;
             if(!x.Reserved.empty())
             {
                 for(auto &item : x.Reserved)
@@ -1019,20 +1450,192 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["dialer-proxy"] = x.DialerProxy;
             if(!x.RemoteDnsResolve.is_undef())
                 singleproxy["remote-dns-resolve"] = x.RemoteDnsResolve.get();
+            if(x.Workers > 0)
+                singleproxy["workers"] = x.Workers;
+            if(x.RefreshServerIPInterval > 0)
+                singleproxy["refresh-server-ip-interval"] = x.RefreshServerIPInterval;
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
+            if(!x.IPStackMode.empty() || !x.IPStackCongestionController.empty())
+            {
+                YAML::Node ipstack;
+                if(!x.IPStackMode.empty())
+                    ipstack["mode"] = x.IPStackMode;
+                if(!x.IPStackCongestionController.empty())
+                    ipstack["congestion-controller"] = x.IPStackCongestionController;
+                singleproxy["ip-stack"] = ipstack;
+            }
             if(!x.AmneziaJC.empty() && !x.AmneziaJMin.empty() && !x.AmneziaJMax.empty())
             {
+                if(!x.AmneziaVersion.empty())
+                    singleproxy["amnezia-wg-option"]["version"] = to_int(x.AmneziaVersion);
                 singleproxy["amnezia-wg-option"]["jc"] = to_int(x.AmneziaJC);
                 singleproxy["amnezia-wg-option"]["jmin"] = to_int(x.AmneziaJMin);
                 singleproxy["amnezia-wg-option"]["jmax"] = to_int(x.AmneziaJMax);
                 singleproxy["amnezia-wg-option"]["s1"] = to_int(x.AmneziaS1);
                 singleproxy["amnezia-wg-option"]["s2"] = to_int(x.AmneziaS2);
-                singleproxy["amnezia-wg-option"]["h1"] = to_int(x.AmneziaH1);
-                singleproxy["amnezia-wg-option"]["h2"] = to_int(x.AmneziaH2);
-                singleproxy["amnezia-wg-option"]["h3"] = to_int(x.AmneziaH3);
-                singleproxy["amnezia-wg-option"]["h4"] = to_int(x.AmneziaH4);
+                if(!x.AmneziaS3.empty())
+                    singleproxy["amnezia-wg-option"]["s3"] = to_int(x.AmneziaS3);
+                if(!x.AmneziaS4.empty())
+                    singleproxy["amnezia-wg-option"]["s4"] = to_int(x.AmneziaS4);
+                if(!x.AmneziaH1.empty())
+                    singleproxy["amnezia-wg-option"]["h1"] = x.AmneziaH1;
+                if(!x.AmneziaH2.empty())
+                    singleproxy["amnezia-wg-option"]["h2"] = x.AmneziaH2;
+                if(!x.AmneziaH3.empty())
+                    singleproxy["amnezia-wg-option"]["h3"] = x.AmneziaH3;
+                if(!x.AmneziaH4.empty())
+                    singleproxy["amnezia-wg-option"]["h4"] = x.AmneziaH4;
+                if(!x.AmneziaI1.empty())
+                    singleproxy["amnezia-wg-option"]["i1"] = x.AmneziaI1;
+                if(!x.AmneziaI2.empty())
+                    singleproxy["amnezia-wg-option"]["i2"] = x.AmneziaI2;
+                if(!x.AmneziaI3.empty())
+                    singleproxy["amnezia-wg-option"]["i3"] = x.AmneziaI3;
+                if(!x.AmneziaI4.empty())
+                    singleproxy["amnezia-wg-option"]["i4"] = x.AmneziaI4;
+                if(!x.AmneziaI5.empty())
+                    singleproxy["amnezia-wg-option"]["i5"] = x.AmneziaI5;
+                if(!x.AmneziaHeaderProtectionKey.empty())
+                    singleproxy["amnezia-wg-option"]["header-protection-key"] = x.AmneziaHeaderProtectionKey;
+                if(!x.AmneziaContentPaddingAddition.empty())
+                    singleproxy["amnezia-wg-option"]["content-padding-addition"] = x.AmneziaContentPaddingAddition;
+                if(!x.AmneziaRekeyAfterTime.empty())
+                    singleproxy["amnezia-wg-option"]["rekey-after-time"] = x.AmneziaRekeyAfterTime;
+                if(!x.AmneziaRekeyTimeout.empty())
+                    singleproxy["amnezia-wg-option"]["rekey-timeout"] = x.AmneziaRekeyTimeout;
+                if(!x.AmneziaRejectAfterTime.empty())
+                    singleproxy["amnezia-wg-option"]["reject-after-time"] = x.AmneziaRejectAfterTime;
+                if(!x.AmneziaKeepaliveTimeout.empty())
+                    singleproxy["amnezia-wg-option"]["keepalive-timeout"] = x.AmneziaKeepaliveTimeout;
+                if(!x.AmneziaMaxHandshakeAttempts.empty())
+                    singleproxy["amnezia-wg-option"]["max-handshake-attempts"] = x.AmneziaMaxHandshakeAttempts;
+                if(!x.AmneziaRandomTrailers.is_undef())
+                    singleproxy["amnezia-wg-option"]["random-trailers"] = x.AmneziaRandomTrailers.get();
+                if(!x.AmneziaDisableCookies.is_undef())
+                    singleproxy["amnezia-wg-option"]["disable-cookies"] = x.AmneziaDisableCookies.get();
+                if(!x.AmneziaJ1.empty())
+                    singleproxy["amnezia-wg-option"]["j1"] = x.AmneziaJ1;
+                if(!x.AmneziaJ2.empty())
+                    singleproxy["amnezia-wg-option"]["j2"] = x.AmneziaJ2;
+                if(!x.AmneziaJ3.empty())
+                    singleproxy["amnezia-wg-option"]["j3"] = x.AmneziaJ3;
+                if(!x.AmneziaItime.empty())
+                    singleproxy["amnezia-wg-option"]["itime"] = to_int(x.AmneziaItime);
             }
             break;
+        case ProxyType::OpenVPN:
+            singleproxy["type"] = "openvpn";
+            if(!x.TransferProtocol.empty())
+                singleproxy["proto"] = toLower(x.TransferProtocol);
+            if(!x.OpenVPNDev.empty())
+                singleproxy["dev"] = x.OpenVPNDev;
+            if(!x.EncryptMethod.empty())
+                singleproxy["cipher"] = x.EncryptMethod;
+            if(!x.OpenVPNDataCiphers.empty())
+                singleproxy["data-ciphers"] = x.OpenVPNDataCiphers;
+            if(!x.OpenVPNDataCipherFallback.empty())
+                singleproxy["data-ciphers-fallback"] = x.OpenVPNDataCipherFallback;
+            if(!x.Auth.empty())
+                singleproxy["auth"] = x.Auth;
+            if(!x.CompLZO.empty())
+                singleproxy["comp-lzo"] = x.CompLZO;
+            if(!x.Ca.empty())
+                singleproxy["ca"] = x.Ca;
+            if(!x.Certificate.empty())
+                singleproxy["cert"] = x.Certificate;
+            if(!x.CertificateKey.empty())
+                singleproxy["key"] = x.CertificateKey;
+            if(!x.OpenVPNTLSCrypt.empty())
+                singleproxy["tls-crypt"] = x.OpenVPNTLSCrypt;
+            if(!x.OpenVPNTLSCryptV2.empty())
+                singleproxy["tls-crypt-v2"] = x.OpenVPNTLSCryptV2;
+            if(!x.OpenVPNTLSAuth.empty())
+                singleproxy["tls-auth"] = x.OpenVPNTLSAuth;
+            if(!x.OpenVPNKeyDirection.empty())
+                singleproxy["key-direction"] = x.OpenVPNKeyDirection;
+            if(!x.Username.empty())
+                singleproxy["username"] = x.Username;
+            if(!x.Password.empty())
+                singleproxy["password"] = x.Password;
+            if(x.Mtu > 0)
+                singleproxy["mtu"] = x.Mtu;
+            if(x.OpenVPNPing > 0)
+                singleproxy["ping"] = x.OpenVPNPing;
+            if(x.OpenVPNPingRestart > 0)
+                singleproxy["ping-restart"] = x.OpenVPNPingRestart;
+            if(x.OpenVPNHandshakeTimeout > 0)
+                singleproxy["handshake-timeout"] = x.OpenVPNHandshakeTimeout;
+            if(x.OpenVPNTranWindow >= 0)
+                singleproxy["tran-window"] = x.OpenVPNTranWindow;
+            if(!x.RemoteDnsResolve.is_undef())
+                singleproxy["remote-dns-resolve"] = x.RemoteDnsResolve.get();
+            if(!x.DnsServers.empty())
+            {
+                YAML::Node dnsarr;
+                for(auto &d : x.DnsServers)
+                    dnsarr.push_back(d);
+                singleproxy["dns"] = dnsarr;
+            }
+            if(!x.OpenVPNPeerInfo.empty())
+            {
+                for(const auto &[k, v] : x.OpenVPNPeerInfo)
+                    singleproxy["peer-info"][k] = v;
+            }
+            if(!tfo.is_undef())
+                singleproxy["tfo"] = tfo.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
+            if(!x.IPStackMode.empty() || !x.IPStackCongestionController.empty())
+            {
+                YAML::Node ipstack;
+                if(!x.IPStackMode.empty())
+                    ipstack["mode"] = x.IPStackMode;
+                if(!x.IPStackCongestionController.empty())
+                    ipstack["congestion-controller"] = x.IPStackCongestionController;
+                singleproxy["ip-stack"] = ipstack;
+            }
+            break;
+        case ProxyType::SSH:
+            singleproxy["type"] = "ssh";
+            if(!x.Username.empty())
+                singleproxy["username"] = x.Username;
+            if(!x.Password.empty())
+                singleproxy["password"] = x.Password;
+            if(!x.SSHPrivateKey.empty())
+                singleproxy["private-key"] = x.SSHPrivateKey;
+            if(!x.SSHPrivateKeyPassphrase.empty())
+                singleproxy["private-key-passphrase"] = x.SSHPrivateKeyPassphrase;
+            if(!x.SSHHostKey.empty())
+                singleproxy["host-key"] = x.SSHHostKey;
+            if(!x.SSHHostKeyAlgorithms.empty())
+                singleproxy["host-key-algorithms"] = x.SSHHostKeyAlgorithms;
+            if(!tfo.is_undef())
+                singleproxy["tfo"] = tfo.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
+            break;
         case ProxyType::Hysteria:
+            if ((x.Up.empty() && !(x.UpSpeed || x.Up == "0")) || (x.Down.empty() && !(x.DownSpeed || x.Down == "0")))
+                continue;
             singleproxy["type"] = "hysteria";
             if (!x.Ports.empty())
                 singleproxy["ports"] = x.Ports;
@@ -1042,15 +1645,16 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["obfs-protocol"] = x.OBFSParam;
             if (!x.Up.empty())
                 singleproxy["up"] = x.Up;
+            else if (x.UpSpeed || x.Up == "0")
+                singleproxy["up"] = x.UpSpeed;
             if (!x.Down.empty())
                 singleproxy["down"] = x.Down;
+            else if (x.DownSpeed || x.Down == "0")
+                singleproxy["down"] = x.DownSpeed;
             if (!x.Auth.empty())
                 singleproxy["auth"] = x.Auth;
             if (!x.AuthStr.empty())
-            {
                 singleproxy["auth-str"] = x.AuthStr;
-                singleproxy["auth_str"] = x.AuthStr;
-            }
             if (!x.OBFS.empty())
                 singleproxy["obfs"] = x.OBFS;
             if (!x.SNI.empty())
@@ -1070,6 +1674,21 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["ca"] = x.Ca;
             if (!x.CaStr.empty())
                 singleproxy["ca-str"] = x.CaStr;
+            if (!x.Certificate.empty())
+                singleproxy["certificate"] = x.Certificate;
+            if (!x.CertificateKey.empty())
+                singleproxy["private-key"] = x.CertificateKey;
+            if (!x.EchEnable.is_undef() || !x.EchConfig.empty() || !x.EchQueryServerName.empty())
+            {
+                if (!x.EchEnable.is_undef())
+                    singleproxy["ech-opts"]["enable"] = x.EchEnable.get();
+                else
+                    singleproxy["ech-opts"]["enable"] = true;
+                if (!x.EchConfig.empty())
+                    singleproxy["ech-opts"]["config"] = x.EchConfig;
+                if (!x.EchQueryServerName.empty())
+                    singleproxy["ech-opts"]["query-server-name"] = x.EchQueryServerName;
+            }
             if (x.RecvWindowConn)
                 singleproxy["recv-window-conn"] = x.RecvWindowConn;
             if (x.RecvWindow)
@@ -1077,15 +1696,23 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
             if (!x.DisableMtuDiscovery.is_undef())
                 singleproxy["disable-mtu-discovery"] = x.DisableMtuDiscovery.get();
             if (!x.TCPFastOpen.is_undef())
-                singleproxy["fast-open"] = x.TCPFastOpen.get();
+                singleproxy["tfo"] = x.TCPFastOpen.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
+            if(!x.NameCertVerify.empty())
+                singleproxy["name-cert-verify"] = x.NameCertVerify;
             if (x.HopInterval)
                 singleproxy["hop-interval"] = x.HopInterval;
             if (!x.UDP.is_undef())
                 singleproxy["udp"] = x.UDP.get();
-            else if (udp && !udp.is_undef())
+            else if (!udp.is_undef())
                 singleproxy["udp"] = udp.get();
-            else
-                singleproxy["udp"] = true;
             break;
         case ProxyType::Hysteria2:
             singleproxy["type"] = "hysteria2";
@@ -1103,12 +1730,22 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["down"] = x.Down;
             else if (x.DownSpeed)
                 singleproxy["down"] = x.DownSpeed;
-            if (x.HopInterval)
+            if (!x.Hysteria2HopInterval.empty())
+                singleproxy["hop-interval"] = x.Hysteria2HopInterval;
+            else if (x.HopInterval)
                 singleproxy["hop-interval"] = x.HopInterval;
+            if(!x.BBRProfile.empty())
+                singleproxy["bbr-profile"] = x.BBRProfile;
+            if(x.UdpMTU > 0)
+                singleproxy["udp-mtu"] = x.UdpMTU;
             if (!x.OBFS.empty() && x.OBFS != "none")
                 singleproxy["obfs"] = x.OBFS;
             if (!x.OBFSParam.empty() && !x.OBFS.empty() && x.OBFS != "none")
                 singleproxy["obfs-password"] = x.OBFSParam;
+            if (x.ObfsMinPacketSize > 0)
+                singleproxy["obfs-min-packet-size"] = x.ObfsMinPacketSize;
+            if (x.ObfsMaxPacketSize > 0)
+                singleproxy["obfs-max-packet-size"] = x.ObfsMaxPacketSize;
             if (!x.SNI.empty())
                 singleproxy["sni"] = x.SNI;
             if (!x.AllowInsecure.is_undef())
@@ -1128,11 +1765,20 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["ca"] = x.Ca;
             if (!x.CaStr.empty())
                 singleproxy["ca-str"] = x.CaStr;
-            if (!x.EchEnable.is_undef() && x.EchEnable.get())
+            if (!x.Certificate.empty())
+                singleproxy["certificate"] = x.Certificate;
+            if (!x.CertificateKey.empty())
+                singleproxy["private-key"] = x.CertificateKey;
+            if (!x.EchEnable.is_undef() || !x.EchConfig.empty() || !x.EchQueryServerName.empty())
             {
-                singleproxy["ech-opts"]["enable"] = true;
+                if (!x.EchEnable.is_undef())
+                    singleproxy["ech-opts"]["enable"] = x.EchEnable.get();
+                else
+                    singleproxy["ech-opts"]["enable"] = true;
                 if (!x.EchConfig.empty())
                     singleproxy["ech-opts"]["config"] = x.EchConfig;
+                if (!x.EchQueryServerName.empty())
+                    singleproxy["ech-opts"]["query-server-name"] = x.EchQueryServerName;
             }
             if (x.CWND > 0)
                 singleproxy["cwnd"] = x.CWND;
@@ -1144,13 +1790,54 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["initial-connection-receive-window"] = x.InitialConnectionReceiveWindow;
             if (x.MaxConnectionReceiveWindow > 0)
                 singleproxy["max-connection-receive-window"] = x.MaxConnectionReceiveWindow;
+            if (!x.RealmEnable.is_undef() || !x.RealmServerURL.empty() || !x.RealmToken.empty() || !x.RealmID.empty() || !x.RealmStunServers.empty() || !x.RealmSNI.empty() || !x.RealmSkipCertVerify.is_undef() || !x.RealmFingerprint.empty() || !x.RealmCertificate.empty() || !x.RealmPrivateKey.empty() || !x.RealmALPN.empty())
+            {
+                if(!x.RealmEnable.is_undef())
+                    singleproxy["realm-opts"]["enable"] = x.RealmEnable.get();
+                else
+                    singleproxy["realm-opts"]["enable"] = true;
+                if(!x.RealmServerURL.empty())
+                    singleproxy["realm-opts"]["server-url"] = x.RealmServerURL;
+                if(!x.RealmToken.empty())
+                    singleproxy["realm-opts"]["token"] = x.RealmToken;
+                if(!x.RealmID.empty())
+                    singleproxy["realm-opts"]["realm-id"] = x.RealmID;
+                if(!x.RealmStunServers.empty())
+                {
+                    for(const auto &item : x.RealmStunServers)
+                        singleproxy["realm-opts"]["stun-servers"].push_back(item);
+                }
+                if(!x.RealmSNI.empty())
+                    singleproxy["realm-opts"]["sni"] = x.RealmSNI;
+                if(!x.RealmSkipCertVerify.is_undef())
+                    singleproxy["realm-opts"]["skip-cert-verify"] = x.RealmSkipCertVerify.get();
+                if(!x.RealmFingerprint.empty())
+                    singleproxy["realm-opts"]["fingerprint"] = x.RealmFingerprint;
+                if(!x.RealmCertificate.empty())
+                    singleproxy["realm-opts"]["certificate"] = x.RealmCertificate;
+                if(!x.RealmPrivateKey.empty())
+                    singleproxy["realm-opts"]["private-key"] = x.RealmPrivateKey;
+                if(!x.RealmALPN.empty())
+                {
+                    for(const auto &item : x.RealmALPN)
+                        singleproxy["realm-opts"]["alpn"].push_back(item);
+                }
+            }
             if (!x.TCPFastOpen.is_undef())
-                singleproxy["fast-open"] = x.TCPFastOpen.get();
-            if (!x.UDP.is_undef() && x.UDP.get())
-                singleproxy["udp"] = true;
-            else if (!x.UDP.is_undef() && !x.UDP.get())
-                singleproxy["udp"] = false;
-            else if (udp && !udp.is_undef())
+                singleproxy["tfo"] = x.TCPFastOpen.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
+            if(!x.NameCertVerify.empty())
+                singleproxy["name-cert-verify"] = x.NameCertVerify;
+            if (!x.UDP.is_undef())
+                singleproxy["udp"] = x.UDP.get();
+            else if (!udp.is_undef())
                 singleproxy["udp"] = udp.get();
             break;
         case ProxyType::TUIC:
@@ -1183,6 +1870,10 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["udp-relay-mode"] = x.UdpRelayMode;
             if(!x.CongestionController.empty())
                 singleproxy["congestion-controller"] = x.CongestionController;
+            if(!x.BBRProfile.empty())
+                singleproxy["bbr-profile"] = x.BBRProfile;
+            if(x.CWND > 0)
+                singleproxy["cwnd"] = x.CWND;
             if(!x.SNI.empty())
                 singleproxy["sni"] = x.SNI;
             else if(!x.ServerName.empty())
@@ -1197,20 +1888,100 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["max-udp-relay-packet-size"] = x.MaxUdpRelayPacketSize;
             if(x.MaxOpenStreams != 0)
                 singleproxy["max-open-streams"] = x.MaxOpenStreams;
+            if(x.RecvWindowConn > 0)
+                singleproxy["recv-window-conn"] = x.RecvWindowConn;
+            if(x.RecvWindow > 0)
+                singleproxy["recv-window"] = x.RecvWindow;
+            if(!x.DisableMtuDiscovery.is_undef())
+                singleproxy["disable-mtu-discovery"] = x.DisableMtuDiscovery.get();
+            if(x.MaxDatagramFrameSize > 0)
+                singleproxy["max-datagram-frame-size"] = x.MaxDatagramFrameSize;
             if(!scv.is_undef())
                 singleproxy["skip-cert-verify"] = scv.get();
+            if(!x.Fingerprint.empty())
+                singleproxy["fingerprint"] = x.Fingerprint;
+            if(!x.Certificate.empty())
+                singleproxy["certificate"] = x.Certificate;
+            if(!x.CertificateKey.empty())
+                singleproxy["private-key"] = x.CertificateKey;
+            if(!x.EchEnable.is_undef() || !x.EchConfig.empty() || !x.EchQueryServerName.empty())
+            {
+                if(!x.EchEnable.is_undef())
+                    singleproxy["ech-opts"]["enable"] = x.EchEnable.get();
+                else
+                    singleproxy["ech-opts"]["enable"] = true;
+                if(!x.EchConfig.empty())
+                    singleproxy["ech-opts"]["config"] = x.EchConfig;
+                if(!x.EchQueryServerName.empty())
+                    singleproxy["ech-opts"]["query-server-name"] = x.EchQueryServerName;
+            }
             if(x.TuicVersion != 0)
                 singleproxy["version"] = x.TuicVersion;
             if(!x.UDPOverStream.is_undef())
                 singleproxy["udp-over-stream"] = x.UDPOverStream.get();
             if(x.UDPOverStreamVersion > 0)
                 singleproxy["udp-over-stream-version"] = x.UDPOverStreamVersion;
-            if(!x.UDP.is_undef() && x.UDP.get())
-                singleproxy["udp"] = true;
-            else if(!x.UDP.is_undef() && !x.UDP.get())
-                singleproxy["udp"] = false;
-            else if(udp && !udp.is_undef())
+            if(!x.UDP.is_undef())
+                singleproxy["udp"] = x.UDP.get();
+            else if(!udp.is_undef())
                 singleproxy["udp"] = udp.get();
+            if(!x.IP.empty())
+                singleproxy["ip"] = x.IP;
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
+            if(!x.NameCertVerify.empty())
+                singleproxy["name-cert-verify"] = x.NameCertVerify;
+            break;
+        case ProxyType::GostRelay:
+            singleproxy["type"] = "gost-relay";
+            if(x.GostRelayForward)
+                singleproxy["forward"] = true;
+            if(!x.SmuxEnabled.is_undef())
+                singleproxy["mux"] = x.SmuxEnabled.get();
+            if(x.TLSSecure)
+                singleproxy["tls"] = true;
+            if(!x.SNI.empty())
+                singleproxy["sni"] = x.SNI;
+            else if(!x.ServerName.empty())
+                singleproxy["sni"] = x.ServerName;
+            if(!x.Username.empty())
+                singleproxy["username"] = x.Username;
+            if(!x.Password.empty())
+                singleproxy["password"] = x.Password;
+            if(!scv.is_undef())
+                singleproxy["skip-cert-verify"] = scv.get();
+            if(!x.Fingerprint.empty())
+                singleproxy["fingerprint"] = x.Fingerprint;
+            if(!x.ClientFingerprint.empty())
+                singleproxy["client-fingerprint"] = x.ClientFingerprint;
+            if(!x.Certificate.empty())
+                singleproxy["certificate"] = x.Certificate;
+            if(!x.CertificateKey.empty())
+                singleproxy["private-key"] = x.CertificateKey;
+            if(!x.NameCertVerify.empty())
+                singleproxy["name-cert-verify"] = x.NameCertVerify;
+            if(!x.UnderlyingProxy.empty())
+                singleproxy["dialer-proxy"] = x.UnderlyingProxy;
+            if(!x.UDP.is_undef())
+                singleproxy["udp"] = x.UDP.get();
+            else if(!udp.is_undef())
+                singleproxy["udp"] = udp.get();
+            if(!tfo.is_undef())
+                singleproxy["tfo"] = tfo.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
             break;
         case ProxyType::Masque:
             singleproxy["type"] = "masque";
@@ -1222,8 +1993,14 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["ip"] = x.IP;
             if(!x.MasqueIPv6.empty())
                 singleproxy["ipv6"] = x.MasqueIPv6;
+            if(!x.SNI.empty())
+                singleproxy["sni"] = x.SNI;
+            if(!x.TransferProtocol.empty())
+                singleproxy["network"] = x.TransferProtocol;
             if(x.Mtu > 0)
                 singleproxy["mtu"] = x.Mtu;
+            if(x.CWND > 0)
+                singleproxy["cwnd"] = x.CWND;
             if(!x.UDP.is_undef())
                 singleproxy["udp"] = x.UDP.get();
             if(!x.UnderlyingProxy.empty())
@@ -1239,39 +2016,37 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
             }
             if(!x.CongestionController.empty())
                 singleproxy["congestion-controller"] = x.CongestionController;
-            break;
-        case ProxyType::AnyTLS:
-            singleproxy["type"] = "anytls";
-            if(!x.Password.empty())
-                singleproxy["password"] = x.Password;
-            if(!x.SNI.empty())
-                singleproxy["sni"] = x.SNI;
-            if(!x.AlpnList.empty())
-            {
-                for(auto &item : x.AlpnList)
-                    singleproxy["alpn"].push_back(item);
-            }
-            else if(!x.Alpn.empty())
-                singleproxy["alpn"].push_back(x.Alpn);
-            if(!x.Fingerprint.empty())
-                singleproxy["fingerprint"] = x.Fingerprint;
-            if(!x.ClientFingerprint.empty())
-                singleproxy["client-fingerprint"] = x.ClientFingerprint;
-            if(x.IdleSessionCheckInterval != 0)
-                singleproxy["idle-session-check-interval"] = x.IdleSessionCheckInterval;
-            if(x.IdleSessionTimeout != 0)
-                singleproxy["idle-session-timeout"] = x.IdleSessionTimeout;
-            if(x.MinIdleSession != 0)
-                singleproxy["min-idle-session"] = x.MinIdleSession;
-            if(!x.PaddingScheme.empty())
-                singleproxy["padding-scheme"] = x.PaddingScheme;
+            if(!x.BBRProfile.empty())
+                singleproxy["bbr-profile"] = x.BBRProfile;
+            if(!x.MasqueURI.empty())
+                singleproxy["uri"] = x.MasqueURI;
+            if(x.HandshakeTimeout > 0)
+                singleproxy["handshake-timeout"] = x.HandshakeTimeout;
+            if(!x.AllowInsecure.is_undef())
+                singleproxy["skip-cert-verify"] = x.AllowInsecure.get();
+            if(!tfo.is_undef())
+                singleproxy["tfo"] = tfo.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
             if(!x.IPVersion.empty())
                 singleproxy["ip-version"] = x.IPVersion;
-            if(!scv.is_undef())
-                singleproxy["skip-cert-verify"] = scv.get();
+            if(!x.NameCertVerify.empty())
+                singleproxy["name-cert-verify"] = x.NameCertVerify;
+            if(!x.IPStackMode.empty() || !x.IPStackCongestionController.empty())
+            {
+                YAML::Node ipstack;
+                if(!x.IPStackMode.empty())
+                    ipstack["mode"] = x.IPStackMode;
+                if(!x.IPStackCongestionController.empty())
+                    ipstack["congestion-controller"] = x.IPStackCongestionController;
+                singleproxy["ip-stack"] = ipstack;
+            }
             break;
         case ProxyType::VLESS:
-        {
             singleproxy["type"] = "vless";
             singleproxy["uuid"] = x.UUID;
             if(x.TLSSecure || x.TLSStr == "reality")
@@ -1283,10 +2058,20 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                     singleproxy["alpn"].push_back(item);
             if(!tfo.is_undef())
                 singleproxy["tfo"] = tfo.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
+            if(!x.NameCertVerify.empty())
+                singleproxy["name-cert-verify"] = x.NameCertVerify;
             if(!x.UDP.is_undef())
                 singleproxy["udp"] = x.UDP.get();
-            else if(udp && !udp.is_undef() && udp.get())
-                singleproxy["udp"] = true;
+            else if(!udp.is_undef())
+                singleproxy["udp"] = udp.get();
             if(!x.XUDP.is_undef())
                 singleproxy["xudp"] = x.XUDP.get();
             else if(xudp && !xudp.is_undef())
@@ -1299,64 +2084,96 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["skip-cert-verify"] = scv.get();
             else if(!x.AllowInsecure.is_undef())
                 singleproxy["skip-cert-verify"] = x.AllowInsecure.get();
-            if(x.PublicKey.empty())
-            {
-                if(!x.SNI.empty())
-                    singleproxy["servername"] = x.SNI;
-                else if(!x.ServerName.empty())
-                    singleproxy["servername"] = x.ServerName;
-                else if(!x.Host.empty() && x.TransferProtocol != "grpc")
-                    singleproxy["servername"] = x.Host;
-            }
+            if(!x.SNI.empty())
+                singleproxy["servername"] = x.SNI;
+            else if(!x.ServerName.empty())
+                singleproxy["servername"] = x.ServerName;
+            else if(!x.Host.empty() && x.TransferProtocol != "grpc")
+                singleproxy["servername"] = x.Host;
+            if(!x.Fingerprint.empty())
+                singleproxy["fingerprint"] = x.Fingerprint;
             if(!x.ClientFingerprint.empty())
                 singleproxy["client-fingerprint"] = x.ClientFingerprint;
             else if(!x.Fingerprint.empty() && x.TLSSecure)
                 singleproxy["client-fingerprint"] = x.Fingerprint;
+            if(!x.Certificate.empty())
+                singleproxy["certificate"] = x.Certificate;
+            if(!x.CertificateKey.empty())
+                singleproxy["private-key"] = x.CertificateKey;
             if(x.XTLS == 2)
                 singleproxy["flow"] = "xtls-rprx-vision";
             else if(!x.Flow.empty())
                 singleproxy["flow"] = x.Flow;
             if(!x.FlowShow.is_undef())
                 singleproxy["flow-show"] = x.FlowShow.get();
-            auto setRealityOpts = [&singleproxy, &x]() {
-                if(!x.PublicKey.empty())
+            if(!x.EchEnable.is_undef() || !x.EchConfig.empty() || !x.EchQueryServerName.empty())
+            {
+                if(!x.EchEnable.is_undef())
+                    singleproxy["ech-opts"]["enable"] = x.EchEnable.get();
+                else
+                    singleproxy["ech-opts"]["enable"] = true;
+                if(!x.EchConfig.empty())
+                    singleproxy["ech-opts"]["config"] = x.EchConfig;
+                if(!x.EchQueryServerName.empty())
+                    singleproxy["ech-opts"]["query-server-name"] = x.EchQueryServerName;
+            }
+            if(!x.ObfsPassword.empty() || x.ObfsVersion > 0)
+            {
+                if(x.ObfsVersion > 0)
                 {
-                    singleproxy["reality-opts"]["public-key"] = x.PublicKey;
-                    singleproxy["reality-opts"]["short-id"] = x.ShortID;
-                    singleproxy["reality-opts"]["short-id"].SetTag("str");
-                    if(!x.ServerName.empty())
-                        singleproxy["reality-opts"]["servername"] = x.ServerName;
-                    else if(!x.SNI.empty())
-                        singleproxy["reality-opts"]["servername"] = x.SNI;
-                    if(!x.SpiderX.empty())
-                        singleproxy["reality-opts"]["spiderX"] = x.SpiderX;
-                    if(!x.SupportX25519Mlkem768.is_undef())
-                        singleproxy["reality-opts"]["support-x25519mlkem768"] = x.SupportX25519Mlkem768.get();
+                    singleproxy["shadow-tls-opts"]["password"] = x.ObfsPassword;
+                    singleproxy["shadow-tls-opts"]["version"] = x.ObfsVersion;
                 }
-            };
-            auto setClientFingerprintForReality = [&singleproxy, &x]() {
-                if(x.ClientFingerprint.empty() && x.Fingerprint.empty())
-                    singleproxy["client-fingerprint"] = "chrome";
-                else if(!x.ClientFingerprint.empty())
-                    singleproxy["client-fingerprint"] = x.ClientFingerprint;
-                else if(!x.Fingerprint.empty() && x.TLSSecure)
-                    singleproxy["client-fingerprint"] = x.Fingerprint;
-            };
+                else if(!x.ObfsVersionHint.empty() || !x.ObfsRestlsScript.empty())
+                {
+                    singleproxy["restls-opts"]["password"] = x.ObfsPassword;
+                    if(!x.ObfsVersionHint.empty())
+                        singleproxy["restls-opts"]["version-hint"] = x.ObfsVersionHint;
+                    if(!x.ObfsRestlsScript.empty())
+                        singleproxy["restls-opts"]["restls-script"] = x.ObfsRestlsScript;
+                }
+                else if(!x.ObfsUsername.empty())
+                {
+                    singleproxy["jls-opts"]["username"] = x.ObfsUsername;
+                    singleproxy["jls-opts"]["password"] = x.ObfsPassword;
+                }
+            }
             switch(hash_(x.TransferProtocol))
             {
                 case "tcp"_hash:
                     singleproxy["network"] = x.TransferProtocol;
                     if(!x.PublicKey.empty() || x.Flow == "xtls-rprx-vision")
-                        setClientFingerprintForReality();
+                    {
+                        if(x.ClientFingerprint.empty() && x.Fingerprint.empty())
+                            singleproxy["client-fingerprint"] = "chrome";
+                        else if(!x.ClientFingerprint.empty())
+                            singleproxy["client-fingerprint"] = x.ClientFingerprint;
+                        else if(!x.Fingerprint.empty() && x.TLSSecure)
+                            singleproxy["client-fingerprint"] = x.Fingerprint;
+                    }
                     if(singleproxy["host"].IsDefined())
                         singleproxy.remove("host");
                     if(singleproxy["path"].IsDefined())
                         singleproxy.remove("path");
-                    setRealityOpts();
+                    if(!x.PublicKey.empty())
+                    {
+                        singleproxy["reality-opts"]["public-key"] = x.PublicKey;
+                        singleproxy["reality-opts"]["short-id"] = x.ShortID;
+                        if(!x.ServerName.empty())
+                            singleproxy["reality-opts"]["servername"] = x.ServerName;
+                        else if(!x.SNI.empty())
+                            singleproxy["reality-opts"]["servername"] = x.SNI;
+                        if(!x.SpiderX.empty())
+                            singleproxy["reality-opts"]["spiderX"] = x.SpiderX;
+                        if(!x.SupportX25519Mlkem768.is_undef())
+                            singleproxy["reality-opts"]["support-x25519mlkem768"] = x.SupportX25519Mlkem768.get();
+                    }
                     if(!x.EchConfig.empty())
                     {
                         singleproxy["ech-opts"]["enable"] = true;
                         singleproxy["ech-opts"]["config"] = x.EchConfig;
+                    if(!x.EchQueryServerName.empty())
+                        singleproxy["ech-opts"]["query-server-name"] = x.EchQueryServerName;
                     }
                     break;
                 case "ws"_hash:
@@ -1374,6 +2191,7 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                             singleproxy["ws-opts"]["path"] = x.WsPath;
                         else
                             singleproxy["ws-opts"]["path"] = x.Path;
+                        applyEncodedHeaders(x.WsHeadersMap, singleproxy["ws-opts"]["headers"]);
                         if(!x.Host.empty())
                             singleproxy["ws-opts"]["headers"]["Host"] = x.Host;
                         if(!x.Edge.empty())
@@ -1394,21 +2212,21 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                             singleproxy["ws-headers"]["Host"] = x.Host;
                         if(!x.Edge.empty())
                             singleproxy["ws-headers"]["Edge"] = x.Edge;
-                        singleproxy["ws-opts"]["path"] = x.Path;
-                        if (!x.Host.empty())
-                            singleproxy["ws-opts"]["headers"]["Host"] = x.Host;
-                        if (!x.Edge.empty())
-                            singleproxy["ws-opts"]["headers"]["Edge"] = x.Edge;
-                        if (!x.V2rayHttpUpgrade.is_undef())
-                            singleproxy["ws-opts"]["v2ray-http-upgrade"] = x.V2rayHttpUpgrade.get();
-                        if(!x.V2rayHttpUpgradeFastOpen.is_undef())
-                            singleproxy["ws-opts"]["v2ray-http-upgrade-fast-open"] = x.V2rayHttpUpgradeFastOpen.get();
                     }
                     break;
                 case "http"_hash:
                     singleproxy["network"] = x.TransferProtocol;
-                    singleproxy["http-opts"]["method"] = "GET";
-                    singleproxy["http-opts"]["path"].push_back(x.Path.empty() ? "/" : x.Path);
+                    singleproxy["http-opts"]["method"] = x.HTTPOptsMethod.empty() ? "GET" : x.HTTPOptsMethod;
+                    if(!x.HTTPOptsPaths.empty())
+                    {
+                        for(const auto &item : x.HTTPOptsPaths)
+                            singleproxy["http-opts"]["path"].push_back(item);
+                    }
+                    else
+                    {
+                        singleproxy["http-opts"]["path"].push_back(x.Path.empty() ? "/" : x.Path);
+                    }
+                    applyEncodedHeadersMultiValue(x.HTTPOptsHeaders, singleproxy["http-opts"]["headers"]);
                     if(!x.Host.empty())
                         singleproxy["http-opts"]["headers"]["Host"].push_back(x.Host);
                     if(!x.Edge.empty())
@@ -1417,40 +2235,255 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 case "h2"_hash:
                     singleproxy["network"] = x.TransferProtocol;
                     singleproxy["h2-opts"]["path"] = x.Path.empty() ? "/" : x.Path;
-                    if(!x.Host.empty())
+                    if(!x.H2Hosts.empty())
+                    {
+                        for(const auto &item : x.H2Hosts)
+                            singleproxy["h2-opts"]["host"].push_back(item);
+                    }
+                    else if(!x.Host.empty())
                         singleproxy["h2-opts"]["host"].push_back(x.Host);
+                    break;
+                case "xhttp"_hash:
+                    singleproxy["network"] = x.TransferProtocol;
+                    singleproxy["xhttp-opts"]["path"] = x.Path.empty() ? "/" : x.Path;
+                    if(!x.Host.empty())
+                        singleproxy["xhttp-opts"]["host"] = x.Host;
+                    if(!x.XHTTPHeaders.empty())
+                    {
+                        string_array header_pairs = split(x.XHTTPHeaders, ";");
+                        for(const auto &pair : header_pairs)
+                        {
+                            if(pair.empty())
+                                continue;
+                            const auto pos = pair.find('=');
+                            if(pos == std::string::npos)
+                                continue;
+                            const auto key = urlDecode(pair.substr(0, pos));
+                            const auto value = urlDecode(pair.substr(pos + 1));
+                            if(key.empty())
+                                continue;
+                            if(toLower(key) == "host")
+                                continue;
+                            singleproxy["xhttp-opts"]["headers"][key] = value;
+                        }
+                    }
+                    if(!x.GRPCMode.empty())
+                        singleproxy["xhttp-opts"]["mode"] = x.GRPCMode;
+                    if(!x.XHTTPNoGRPCHeader.is_undef())
+                        singleproxy["xhttp-opts"]["no-grpc-header"] = x.XHTTPNoGRPCHeader.get();
+                    if(!x.XHTTPXPaddingBytes.empty())
+                        singleproxy["xhttp-opts"]["x-padding-bytes"] = x.XHTTPXPaddingBytes;
+                    if(!x.XHTTPXPaddingObfsMode.is_undef())
+                        singleproxy["xhttp-opts"]["x-padding-obfs-mode"] = x.XHTTPXPaddingObfsMode.get();
+                    if(!x.XHTTPXPaddingKey.empty())
+                        singleproxy["xhttp-opts"]["x-padding-key"] = x.XHTTPXPaddingKey;
+                    if(!x.XHTTPXPaddingHeader.empty())
+                        singleproxy["xhttp-opts"]["x-padding-header"] = x.XHTTPXPaddingHeader;
+                    if(!x.XHTTPXPaddingPlacement.empty())
+                        singleproxy["xhttp-opts"]["x-padding-placement"] = x.XHTTPXPaddingPlacement;
+                    if(!x.XHTTPXPaddingMethod.empty())
+                        singleproxy["xhttp-opts"]["x-padding-method"] = x.XHTTPXPaddingMethod;
+                    if(!x.XHTTPUplinkHTTPMethod.empty())
+                        singleproxy["xhttp-opts"]["uplink-http-method"] = x.XHTTPUplinkHTTPMethod;
+                    if(!x.XHTTPSessionPlacement.empty())
+                        singleproxy["xhttp-opts"]["session-placement"] = x.XHTTPSessionPlacement;
+                    if(!x.XHTTPSessionKey.empty())
+                        singleproxy["xhttp-opts"]["session-key"] = x.XHTTPSessionKey;
+                    if(!x.XHTTPSessionTable.empty())
+                        singleproxy["xhttp-opts"]["session-table"] = x.XHTTPSessionTable;
+                    if(!x.XHTTPSessionLength.empty())
+                        singleproxy["xhttp-opts"]["session-length"] = x.XHTTPSessionLength;
+                    if(!x.XHTTPSeqPlacement.empty())
+                        singleproxy["xhttp-opts"]["seq-placement"] = x.XHTTPSeqPlacement;
+                    if(!x.XHTTPSeqKey.empty())
+                        singleproxy["xhttp-opts"]["seq-key"] = x.XHTTPSeqKey;
+                    if(!x.XHTTPUplinkDataPlacement.empty())
+                        singleproxy["xhttp-opts"]["uplink-data-placement"] = x.XHTTPUplinkDataPlacement;
+                    if(!x.XHTTPUplinkDataKey.empty())
+                        singleproxy["xhttp-opts"]["uplink-data-key"] = x.XHTTPUplinkDataKey;
+                    if(!x.XHTTPUplinkChunkSize.empty())
+                        singleproxy["xhttp-opts"]["uplink-chunk-size"] = x.XHTTPUplinkChunkSize;
+                    if(!x.XHTTPScMaxEachPostBytes.empty())
+                        singleproxy["xhttp-opts"]["sc-max-each-post-bytes"] = x.XHTTPScMaxEachPostBytes;
+                    if(!x.XHTTPScMaxBufferedPosts.empty())
+                        singleproxy["xhttp-opts"]["sc-max-buffered-posts"] = x.XHTTPScMaxBufferedPosts;
+                    if(!x.XHTTPScMinPostsIntervalMs.empty())
+                        singleproxy["xhttp-opts"]["sc-min-posts-interval-ms"] = x.XHTTPScMinPostsIntervalMs;
+                    if(!x.XHTTPReuseMaxConnections.empty() || !x.XHTTPReuseMaxConcurrency.empty() || !x.XHTTPReuseCMaxReuseTimes.empty() || !x.XHTTPReuseHMaxRequestTimes.empty() || !x.XHTTPReuseHMaxReusableSecs.empty() || x.XHTTPReuseHKeepAlivePeriod > 0)
+                    {
+                        if(!x.XHTTPReuseMaxConnections.empty())
+                            singleproxy["xhttp-opts"]["reuse-settings"]["max-connections"] = x.XHTTPReuseMaxConnections;
+                        if(!x.XHTTPReuseMaxConcurrency.empty())
+                            singleproxy["xhttp-opts"]["reuse-settings"]["max-concurrency"] = x.XHTTPReuseMaxConcurrency;
+                        if(!x.XHTTPReuseCMaxReuseTimes.empty())
+                            singleproxy["xhttp-opts"]["reuse-settings"]["c-max-reuse-times"] = x.XHTTPReuseCMaxReuseTimes;
+                        if(!x.XHTTPReuseHMaxRequestTimes.empty())
+                            singleproxy["xhttp-opts"]["reuse-settings"]["h-max-request-times"] = x.XHTTPReuseHMaxRequestTimes;
+                        if(!x.XHTTPReuseHMaxReusableSecs.empty())
+                            singleproxy["xhttp-opts"]["reuse-settings"]["h-max-reusable-secs"] = x.XHTTPReuseHMaxReusableSecs;
+                        if(x.XHTTPReuseHKeepAlivePeriod > 0)
+                            singleproxy["xhttp-opts"]["reuse-settings"]["h-keep-alive-period"] = (int)x.XHTTPReuseHKeepAlivePeriod;
+                    }
+                    if(!x.XHTTPDownloadPath.empty())
+                        singleproxy["xhttp-opts"]["download-settings"]["path"] = x.XHTTPDownloadPath;
+                    if(!x.XHTTPDownloadHost.empty())
+                        singleproxy["xhttp-opts"]["download-settings"]["host"] = x.XHTTPDownloadHost;
+                    if(!x.XHTTPDownloadHeaders.empty())
+                    {
+                        string_array header_pairs = split(x.XHTTPDownloadHeaders, ";");
+                        for(const auto &pair : header_pairs)
+                        {
+                            if(pair.empty())
+                                continue;
+                            const auto pos = pair.find('=');
+                            if(pos == std::string::npos)
+                                continue;
+                            const auto key = urlDecode(pair.substr(0, pos));
+                            const auto value = urlDecode(pair.substr(pos + 1));
+                            if(key.empty())
+                                continue;
+                            if(toLower(key) == "host")
+                                continue;
+                            singleproxy["xhttp-opts"]["download-settings"]["headers"][key] = value;
+                        }
+                    }
+                    if(!x.XHTTPDownloadReuseMaxConnections.empty() || !x.XHTTPDownloadReuseMaxConcurrency.empty() || !x.XHTTPDownloadReuseCMaxReuseTimes.empty() || !x.XHTTPDownloadReuseHMaxRequestTimes.empty() || !x.XHTTPDownloadReuseHMaxReusableSecs.empty() || x.XHTTPDownloadReuseHKeepAlivePeriod > 0)
+                    {
+                        if(!x.XHTTPDownloadReuseMaxConnections.empty())
+                            singleproxy["xhttp-opts"]["download-settings"]["reuse-settings"]["max-connections"] = x.XHTTPDownloadReuseMaxConnections;
+                        if(!x.XHTTPDownloadReuseMaxConcurrency.empty())
+                            singleproxy["xhttp-opts"]["download-settings"]["reuse-settings"]["max-concurrency"] = x.XHTTPDownloadReuseMaxConcurrency;
+                        if(!x.XHTTPDownloadReuseCMaxReuseTimes.empty())
+                            singleproxy["xhttp-opts"]["download-settings"]["reuse-settings"]["c-max-reuse-times"] = x.XHTTPDownloadReuseCMaxReuseTimes;
+                        if(!x.XHTTPDownloadReuseHMaxRequestTimes.empty())
+                            singleproxy["xhttp-opts"]["download-settings"]["reuse-settings"]["h-max-request-times"] = x.XHTTPDownloadReuseHMaxRequestTimes;
+                        if(!x.XHTTPDownloadReuseHMaxReusableSecs.empty())
+                            singleproxy["xhttp-opts"]["download-settings"]["reuse-settings"]["h-max-reusable-secs"] = x.XHTTPDownloadReuseHMaxReusableSecs;
+                        if(x.XHTTPDownloadReuseHKeepAlivePeriod > 0)
+                            singleproxy["xhttp-opts"]["download-settings"]["reuse-settings"]["h-keep-alive-period"] = (int)x.XHTTPDownloadReuseHKeepAlivePeriod;
+                    }
+                    if(!x.XHTTPDownloadServer.empty())
+                        singleproxy["xhttp-opts"]["download-settings"]["server"] = x.XHTTPDownloadServer;
+                    if(x.XHTTPDownloadPort != 0)
+                        singleproxy["xhttp-opts"]["download-settings"]["port"] = x.XHTTPDownloadPort;
+                    if(!x.XHTTPDownloadTLS.is_undef())
+                        singleproxy["xhttp-opts"]["download-settings"]["tls"] = x.XHTTPDownloadTLS.get();
+                    for(const auto &alpn : x.XHTTPDownloadALPN)
+                        singleproxy["xhttp-opts"]["download-settings"]["alpn"].push_back(alpn);
+                    if(!x.XHTTPDownloadECHEnable.is_undef() || !x.XHTTPDownloadECHConfig.empty() || !x.XHTTPDownloadECHQueryServerName.empty())
+                    {
+                        if(!x.XHTTPDownloadECHEnable.is_undef())
+                            singleproxy["xhttp-opts"]["download-settings"]["ech-opts"]["enable"] = x.XHTTPDownloadECHEnable.get();
+                        if(!x.XHTTPDownloadECHConfig.empty())
+                            singleproxy["xhttp-opts"]["download-settings"]["ech-opts"]["config"] = x.XHTTPDownloadECHConfig;
+                        if(!x.XHTTPDownloadECHQueryServerName.empty())
+                            singleproxy["xhttp-opts"]["download-settings"]["ech-opts"]["query-server-name"] = x.XHTTPDownloadECHQueryServerName;
+                    }
+                    if(!x.XHTTPDownloadRealityPublicKey.empty() || !x.XHTTPDownloadRealityShortID.empty() || !x.XHTTPDownloadRealitySpiderX.empty() || !x.XHTTPDownloadRealitySupportX25519Mlkem768.is_undef())
+                    {
+                        if(!x.XHTTPDownloadRealityPublicKey.empty())
+                            singleproxy["xhttp-opts"]["download-settings"]["reality-opts"]["public-key"] = x.XHTTPDownloadRealityPublicKey;
+                        if(!x.XHTTPDownloadRealityShortID.empty())
+                        {
+                            singleproxy["xhttp-opts"]["download-settings"]["reality-opts"]["short-id"] = x.XHTTPDownloadRealityShortID;
+                        }
+                        if(!x.XHTTPDownloadRealitySpiderX.empty())
+                            singleproxy["xhttp-opts"]["download-settings"]["reality-opts"]["spiderX"] = x.XHTTPDownloadRealitySpiderX;
+                        if(!x.XHTTPDownloadRealitySupportX25519Mlkem768.is_undef())
+                            singleproxy["xhttp-opts"]["download-settings"]["reality-opts"]["support-x25519mlkem768"] = x.XHTTPDownloadRealitySupportX25519Mlkem768.get();
+                    }
+                    if(!x.XHTTPDownloadSkipCertVerify.is_undef())
+                        singleproxy["xhttp-opts"]["download-settings"]["skip-cert-verify"] = x.XHTTPDownloadSkipCertVerify.get();
+                    if(!x.XHTTPDownloadNameCertVerify.empty())
+                        singleproxy["xhttp-opts"]["download-settings"]["name-cert-verify"] = x.XHTTPDownloadNameCertVerify;
+                    if(!x.XHTTPDownloadFingerprint.empty())
+                        singleproxy["xhttp-opts"]["download-settings"]["fingerprint"] = x.XHTTPDownloadFingerprint;
+                    if(!x.XHTTPDownloadCertificate.empty())
+                        singleproxy["xhttp-opts"]["download-settings"]["certificate"] = x.XHTTPDownloadCertificate;
+                    if(!x.XHTTPDownloadPrivateKey.empty())
+                        singleproxy["xhttp-opts"]["download-settings"]["private-key"] = x.XHTTPDownloadPrivateKey;
+                    if(!x.XHTTPDownloadServerName.empty())
+                        singleproxy["xhttp-opts"]["download-settings"]["servername"] = x.XHTTPDownloadServerName;
+                    if(!x.XHTTPDownloadClientFingerprint.empty())
+                        singleproxy["xhttp-opts"]["download-settings"]["client-fingerprint"] = x.XHTTPDownloadClientFingerprint;
                     break;
                 case "grpc"_hash:
                     singleproxy["network"] = x.TransferProtocol;
                     singleproxy["grpc-opts"]["grpc-mode"] = x.GRPCMode;
-                    singleproxy["grpc-opts"]["grpc-service-name"] = x.GrpcServiceName;
+                    if(!x.GrpcServiceName.empty())
+                        singleproxy["grpc-opts"]["grpc-service-name"] = x.GrpcServiceName;
+                    else if(!x.Path.empty())
+                        singleproxy["grpc-opts"]["grpc-service-name"] = x.Path;
                     if(!x.GrpcUserAgent.empty())
                         singleproxy["grpc-opts"]["grpc-user-agent"] = x.GrpcUserAgent;
                     if(x.GrpcPingInterval > 0)
                         singleproxy["grpc-opts"]["ping-interval"] = (int)x.GrpcPingInterval;
+                    if(x.GrpcMaxConnections > 0)
+                        singleproxy["grpc-opts"]["max-connections"] = (int)x.GrpcMaxConnections;
+                    if(x.GrpcMinStreams > 0)
+                        singleproxy["grpc-opts"]["min-streams"] = (int)x.GrpcMinStreams;
+                    if(x.GrpcMaxStreams > 0)
+                        singleproxy["grpc-opts"]["max-streams"] = (int)x.GrpcMaxStreams;
                     if(!x.PublicKey.empty() || x.Flow == "xtls-rprx-vision")
-                        setClientFingerprintForReality();
-                    setRealityOpts();
+                    {
+                        if(x.ClientFingerprint.empty() && x.Fingerprint.empty())
+                            singleproxy["client-fingerprint"] = "chrome";
+                        else if(!x.ClientFingerprint.empty())
+                            singleproxy["client-fingerprint"] = x.ClientFingerprint;
+                        else if(!x.Fingerprint.empty() && x.TLSSecure)
+                            singleproxy["client-fingerprint"] = x.Fingerprint;
+                    }
+                    if(!x.PublicKey.empty())
+                    {
+                        singleproxy["reality-opts"]["public-key"] = x.PublicKey;
+                        singleproxy["reality-opts"]["short-id"] = x.ShortID;
+                        if(!x.ServerName.empty())
+                            singleproxy["reality-opts"]["servername"] = x.ServerName;
+                        else if(!x.SNI.empty())
+                            singleproxy["reality-opts"]["servername"] = x.SNI;
+                        if(!x.SpiderX.empty())
+                            singleproxy["reality-opts"]["spiderX"] = x.SpiderX;
+                        if(!x.SupportX25519Mlkem768.is_undef())
+                            singleproxy["reality-opts"]["support-x25519mlkem768"] = x.SupportX25519Mlkem768.get();
+                    }
                     break;
                 case "quic"_hash:
                     singleproxy["network"] = x.TransferProtocol;
-                    if(!x.QUICInitStreamReceiveWindow.empty())
-                        singleproxy["quic-opts"]["init-stream-receive-window"] = x.QUICInitStreamReceiveWindow;
-                    if(!x.QUICMaxStreamReceiveWindow.empty())
-                        singleproxy["quic-opts"]["max-stream-receive-window"] = x.QUICMaxStreamReceiveWindow;
-                    if(!x.QUICInitConnReceiveWindow.empty())
-                        singleproxy["quic-opts"]["init-conn-receive-window"] = x.QUICInitConnReceiveWindow;
-                    if(!x.QUICMaxConnReceiveWindow.empty())
-                        singleproxy["quic-opts"]["max-conn-receive-window"] = x.QUICMaxConnReceiveWindow;
+                    if(!x.QUICSecure.empty())
+                        singleproxy["quic-opts"]["security"] = x.QUICSecure;
+                    else if(!x.Host.empty())
+                        singleproxy["quic-opts"]["security"] = x.Host;
+                    if(!x.QUICSecret.empty())
+                        singleproxy["quic-opts"]["key"] = x.QUICSecret;
+                    else if(!x.Path.empty())
+                        singleproxy["quic-opts"]["key"] = x.Path;
                     if(!x.PublicKey.empty() || x.Flow == "xtls-rprx-vision")
-                        setClientFingerprintForReality();
-                    setRealityOpts();
+                    {
+                        if(x.ClientFingerprint.empty() && x.Fingerprint.empty())
+                            singleproxy["client-fingerprint"] = "chrome";
+                        else if(!x.ClientFingerprint.empty())
+                            singleproxy["client-fingerprint"] = x.ClientFingerprint;
+                        else if(!x.Fingerprint.empty() && x.TLSSecure)
+                            singleproxy["client-fingerprint"] = x.Fingerprint;
+                    }
+                    if(!x.PublicKey.empty())
+                    {
+                        singleproxy["reality-opts"]["public-key"] = x.PublicKey;
+                        singleproxy["reality-opts"]["short-id"] = x.ShortID;
+                        if(!x.ServerName.empty())
+                            singleproxy["reality-opts"]["servername"] = x.ServerName;
+                        else if(!x.SNI.empty())
+                            singleproxy["reality-opts"]["servername"] = x.SNI;
+                        if(!x.SpiderX.empty())
+                            singleproxy["reality-opts"]["spiderX"] = x.SpiderX;
+                        if(!x.SupportX25519Mlkem768.is_undef())
+                            singleproxy["reality-opts"]["support-x25519mlkem768"] = x.SupportX25519Mlkem768.get();
+                    }
                     break;
                 default:
                     continue;
             }
             break;
-        }
         case ProxyType::Mieru:
             singleproxy["type"] = "mieru";
             if(!x.Password.empty())
@@ -1472,6 +2505,16 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["handshake-mode"] = x.HandshakeMode;
             if(!x.TrafficPattern.empty())
                 singleproxy["traffic-pattern"] = x.TrafficPattern;
+            if(!tfo.is_undef())
+                singleproxy["tfo"] = tfo.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
             break;
         case ProxyType::Sudoku:
             singleproxy["type"] = "sudoku";
@@ -1498,12 +2541,16 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["handshake-timeout"] = x.HandshakeTimeout;
             if(!x.EnablePureDownlink.is_undef())
                 singleproxy["enable-pure-downlink"] = x.EnablePureDownlink.get();
-            if(!x.DisableHTTPMask.is_undef() || !x.HTTPMaskMode.empty() || !x.HTTPMaskTLS.is_undef() || 
+            if(!x.HTTPMaskMultiplex.empty())
+                singleproxy["multiplex"] = x.HTTPMaskMultiplex;
+            if(!x.DisableHTTPMask.is_undef() || !x.HTTPMask.is_undef() || !x.HTTPMaskMode.empty() || !x.HTTPMaskTLS.is_undef() ||
                !x.HTTPMaskHost.empty() || !x.PathRoot.empty() || !x.HTTPMaskMultiplex.empty())
             {
                 YAML::Node httpmask;
                 if(!x.DisableHTTPMask.is_undef())
                     httpmask["disable"] = x.DisableHTTPMask.get();
+                else if(!x.HTTPMask.is_undef())
+                    httpmask["disable"] = !x.HTTPMask.get();
                 if(!x.HTTPMaskMode.empty())
                     httpmask["mode"] = x.HTTPMaskMode;
                 if(!x.HTTPMaskTLS.is_undef())
@@ -1516,6 +2563,16 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                     httpmask["multiplex"] = x.HTTPMaskMultiplex;
                 singleproxy["httpmask"] = httpmask;
             }
+            if(!tfo.is_undef())
+                singleproxy["tfo"] = tfo.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
             break;
         case ProxyType::TrustTunnel:
             singleproxy["type"] = "trusttunnel";
@@ -1546,6 +2603,390 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
                 singleproxy["quic"] = x.QUIC.get();
             if(!x.CongestionController.empty())
                 singleproxy["congestion-controller"] = x.CongestionController;
+            if(!x.BBRProfile.empty())
+                singleproxy["bbr-profile"] = x.BBRProfile;
+            if(x.CWND > 0)
+                singleproxy["cwnd"] = x.CWND;
+            if(!x.Fingerprint.empty())
+                singleproxy["fingerprint"] = x.Fingerprint;
+            if(!x.Certificate.empty())
+                singleproxy["certificate"] = x.Certificate;
+            if(!x.CertificateKey.empty())
+                singleproxy["private-key"] = x.CertificateKey;
+            if(!x.EchEnable.is_undef() || !x.EchConfig.empty() || !x.EchQueryServerName.empty())
+            {
+                if(!x.EchEnable.is_undef())
+                    singleproxy["ech-opts"]["enable"] = x.EchEnable.get();
+                else
+                    singleproxy["ech-opts"]["enable"] = true;
+                if(!x.EchConfig.empty())
+                    singleproxy["ech-opts"]["config"] = x.EchConfig;
+                if(!x.EchQueryServerName.empty())
+                    singleproxy["ech-opts"]["query-server-name"] = x.EchQueryServerName;
+            }
+            if(x.GrpcMaxConnections > 0)
+                singleproxy["max-connections"] = x.GrpcMaxConnections;
+            if(x.GrpcMinStreams > 0)
+                singleproxy["min-streams"] = x.GrpcMinStreams;
+            if(x.GrpcMaxStreams > 0)
+                singleproxy["max-streams"] = x.GrpcMaxStreams;
+            if(!x.NameCertVerify.empty())
+                singleproxy["name-cert-verify"] = x.NameCertVerify;
+            if(!tfo.is_undef())
+                singleproxy["tfo"] = tfo.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
+            break;
+        case ProxyType::Tailscale:
+            singleproxy["type"] = "tailscale";
+            if(!x.Hostname.empty())
+                singleproxy["hostname"] = x.Hostname;
+            if(!x.TailscaleAuthKey.empty())
+                singleproxy["auth-key"] = x.TailscaleAuthKey;
+            if(!x.TailscaleControlURL.empty())
+                singleproxy["control-url"] = x.TailscaleControlURL;
+            if(!x.TailscaleStateDir.empty())
+                singleproxy["state-dir"] = x.TailscaleStateDir;
+            if(!x.TailscaleEphemeral.is_undef())
+                singleproxy["ephemeral"] = x.TailscaleEphemeral.get();
+            if(!x.UDP.is_undef())
+                singleproxy["udp"] = x.UDP.get();
+            else if(!udp.is_undef())
+                singleproxy["udp"] = udp.get();
+            if(!x.TailscaleAcceptRoutes.is_undef())
+                singleproxy["accept-routes"] = x.TailscaleAcceptRoutes.get();
+            if(!x.TailscaleExitNode.empty())
+                singleproxy["exit-node"] = x.TailscaleExitNode;
+            if(!x.TailscaleExitNodeAllowLANAccess.is_undef())
+                singleproxy["exit-node-allow-lan-access"] = x.TailscaleExitNodeAllowLANAccess.get();
+            if(!tfo.is_undef())
+                singleproxy["tfo"] = tfo.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
+            break;
+        case ProxyType::ZeroTier:
+            singleproxy["type"] = "zerotier";
+            if(!x.Hostname.empty())
+                singleproxy["hostname"] = x.Hostname;
+            if(!x.ZeroTierNetwork.empty())
+                singleproxy["network"] = x.ZeroTierNetwork;
+            if(!x.ZeroTierStateDir.empty())
+                singleproxy["state-dir"] = x.ZeroTierStateDir;
+            if(!x.ZeroTierIdentitySecret.empty())
+                singleproxy["identity-secret"] = x.ZeroTierIdentitySecret;
+            if(!x.ZeroTierPlanet.empty())
+                singleproxy["planet"] = x.ZeroTierPlanet;
+            if(!x.IPStackMode.empty() || !x.IPStackCongestionController.empty())
+            {
+                YAML::Node ipstack;
+                if(!x.IPStackMode.empty())
+                    ipstack["mode"] = x.IPStackMode;
+                if(!x.IPStackCongestionController.empty())
+                    ipstack["congestion-controller"] = x.IPStackCongestionController;
+                singleproxy["ip-stack"] = ipstack;
+            }
+            if(x.Mtu > 0)
+                singleproxy["mtu"] = x.Mtu;
+            if(x.ZeroTierPhysicalMTU > 0)
+                singleproxy["physical-mtu"] = x.ZeroTierPhysicalMTU;
+            if(!x.UDP.is_undef())
+                singleproxy["udp"] = x.UDP.get();
+            else if(!udp.is_undef())
+                singleproxy["udp"] = udp.get();
+            if(!x.RemoteDnsResolve.is_undef())
+                singleproxy["remote-dns-resolve"] = x.RemoteDnsResolve.get();
+            if(!x.DnsServers.empty())
+                singleproxy["dns"] = x.DnsServers;
+            if(!x.ZeroTierLowBandwidth.is_undef())
+                singleproxy["low-bandwidth"] = x.ZeroTierLowBandwidth.get();
+            if(!x.ZeroTierEncryptedHello.is_undef())
+                singleproxy["encrypted-hello"] = x.ZeroTierEncryptedHello.get();
+            if(x.ZeroTierPrimaryPort != 0)
+                singleproxy["primary-port"] = x.ZeroTierPrimaryPort;
+            if(x.ZeroTierSecondaryPort != 0)
+                singleproxy["secondary-port"] = x.ZeroTierSecondaryPort;
+            if(!x.ZeroTierTCPFallbackMode.empty())
+                singleproxy["tcp-fallback-mode"] = x.ZeroTierTCPFallbackMode;
+            if(!x.ZeroTierTCPFallbackRelay.empty())
+                singleproxy["tcp-fallback-relay"] = x.ZeroTierTCPFallbackRelay;
+            if(!x.ZeroTierOrbit.empty())
+            {
+                for(const auto &orbit : x.ZeroTierOrbit)
+                {
+                    std::string world = orbit, seed;
+                    string_size pos = world.find('|');
+                    if(pos != std::string::npos)
+                    {
+                        seed = world.substr(pos + 1);
+                        world.erase(pos);
+                    }
+                    if(world.empty())
+                        continue;
+                    singleproxy["orbit"].push_back(YAML::Node(YAML::NodeType::Map));
+                    YAML::Node orbitNode = singleproxy["orbit"][singleproxy["orbit"].size() - 1];
+                    orbitNode["world"] = world;
+                    if(!seed.empty())
+                        orbitNode["seed"] = seed;
+                }
+            }
+            if(!x.ZeroTierRemoteTraceTarget.empty())
+                singleproxy["remote-trace-target"] = x.ZeroTierRemoteTraceTarget;
+            if(x.ZeroTierRemoteTraceLevel > 0)
+                singleproxy["remote-trace-level"] = x.ZeroTierRemoteTraceLevel;
+            if(!tfo.is_undef())
+                singleproxy["tfo"] = tfo.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
+            break;
+        case ProxyType::AnyTLS:
+            singleproxy["type"] = "anytls";
+            singleproxy["password"] = x.Password;
+            if(!x.SNI.empty())
+                singleproxy["sni"] = x.SNI;
+            if(!x.AlpnList.empty())
+            {
+                for(auto &item : x.AlpnList)
+                    singleproxy["alpn"].push_back(item);
+            }
+            else if(!x.Alpn.empty())
+                singleproxy["alpn"].push_back(x.Alpn);
+            if(!x.Fingerprint.empty())
+                singleproxy["fingerprint"] = x.Fingerprint;
+            if(!x.ClientFingerprint.empty())
+                singleproxy["client-fingerprint"] = x.ClientFingerprint;
+            if(!x.Certificate.empty())
+                singleproxy["certificate"] = x.Certificate;
+            if(!x.CertificateKey.empty())
+                singleproxy["private-key"] = x.CertificateKey;
+            if(!x.EchEnable.is_undef() || !x.EchConfig.empty() || !x.EchQueryServerName.empty())
+            {
+                if(!x.EchEnable.is_undef())
+                    singleproxy["ech-opts"]["enable"] = x.EchEnable.get();
+                else
+                    singleproxy["ech-opts"]["enable"] = true;
+                if(!x.EchConfig.empty())
+                    singleproxy["ech-opts"]["config"] = x.EchConfig;
+                if(!x.EchQueryServerName.empty())
+                    singleproxy["ech-opts"]["query-server-name"] = x.EchQueryServerName;
+            }
+            if(x.IdleSessionCheckInterval != 0)
+                singleproxy["idle-session-check-interval"] = x.IdleSessionCheckInterval;
+            if(x.IdleSessionTimeout != 0)
+                singleproxy["idle-session-timeout"] = x.IdleSessionTimeout;
+            if(x.MinIdleSession != 0)
+                singleproxy["min-idle-session"] = x.MinIdleSession;
+            if(!x.ClientMetadata.empty())
+                singleproxy["client-metadata"] = x.ClientMetadata;
+            if(!x.Reuse.is_undef())
+                singleproxy["reuse"] = x.Reuse.get();
+            if(!x.DisableReuse.is_undef())
+                singleproxy["disable-reuse"] = x.DisableReuse.get();
+            if(!x.PaddingScheme.empty())
+                singleproxy["padding-scheme"] = x.PaddingScheme;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
+            if(!scv.is_undef())
+                singleproxy["skip-cert-verify"] = scv.get();
+            if(!x.UDP.is_undef())
+                singleproxy["udp"] = x.UDP.get();
+            if(!tfo.is_undef())
+                singleproxy["tfo"] = tfo.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.NameCertVerify.empty())
+                singleproxy["name-cert-verify"] = x.NameCertVerify;
+            if(!x.ObfsPassword.empty() || x.ObfsVersion > 0)
+            {
+                if(x.ObfsVersion > 0)
+                {
+                    singleproxy["shadow-tls-opts"]["password"] = x.ObfsPassword;
+                    singleproxy["shadow-tls-opts"]["version"] = x.ObfsVersion;
+                }
+                else if(!x.ObfsVersionHint.empty() || !x.ObfsRestlsScript.empty())
+                {
+                    singleproxy["restls-opts"]["password"] = x.ObfsPassword;
+                    if(!x.ObfsVersionHint.empty())
+                        singleproxy["restls-opts"]["version-hint"] = x.ObfsVersionHint;
+                    if(!x.ObfsRestlsScript.empty())
+                        singleproxy["restls-opts"]["restls-script"] = x.ObfsRestlsScript;
+                }
+                else if(!x.ObfsUsername.empty())
+                {
+                    singleproxy["jls-opts"]["username"] = x.ObfsUsername;
+                    singleproxy["jls-opts"]["password"] = x.ObfsPassword;
+                }
+            }
+            break;
+        case ProxyType::ShadowQuic:
+            singleproxy["type"] = "shadow-quic";
+            if(!x.Username.empty())
+                singleproxy["username"] = x.Username;
+            if(!x.Password.empty())
+                singleproxy["password"] = x.Password;
+            if(!x.SNI.empty())
+                singleproxy["sni"] = x.SNI;
+            if(!x.AlpnList.empty())
+            {
+                for(auto &item : x.AlpnList)
+                    singleproxy["alpn"].push_back(item);
+            }
+            else if(!x.Alpn.empty())
+                singleproxy["alpn"].push_back(x.Alpn);
+            if(!x.QUICVersions.empty())
+            {
+                for(auto &item : x.QUICVersions)
+                    singleproxy["quic-versions"].push_back(item);
+            }
+            if(!x.UDPOverStream.is_undef())
+                singleproxy["udp-over-stream"] = x.UDPOverStream.get();
+            if(!x.ZeroRTT.is_undef())
+                singleproxy["zero-rtt"] = x.ZeroRTT.get();
+            if(x.KeepAliveInterval > 0)
+                singleproxy["keep-alive-interval"] = x.KeepAliveInterval;
+            if(!x.CongestionController.empty())
+                singleproxy["congestion-controller"] = x.CongestionController;
+            if(x.CWND > 0)
+                singleproxy["cwnd"] = x.CWND;
+            if(!x.BBRProfile.empty())
+                singleproxy["bbr-profile"] = x.BBRProfile;
+            if(x.RecvWindowConn > 0)
+                singleproxy["recv-window-conn"] = x.RecvWindowConn;
+            if(x.RecvWindow > 0)
+                singleproxy["recv-window"] = x.RecvWindow;
+            if(!x.DisableMtuDiscovery.is_undef())
+                singleproxy["disable-mtu-discovery"] = x.DisableMtuDiscovery.get();
+            if(x.MaxDatagramFrameSize > 0)
+                singleproxy["max-datagram-frame-size"] = x.MaxDatagramFrameSize;
+            if(x.MaxOpenStreams > 0)
+                singleproxy["max-open-streams"] = x.MaxOpenStreams;
+            if(!scv.is_undef())
+                singleproxy["skip-cert-verify"] = scv.get();
+            if(!x.UDP.is_undef())
+                singleproxy["udp"] = x.UDP.get();
+            if(!tfo.is_undef())
+                singleproxy["tfo"] = tfo.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
+            if(!x.Up.empty())
+                singleproxy["up"] = x.Up;
+            if(!x.Down.empty())
+                singleproxy["down"] = x.Down;
+            break;
+        case ProxyType::EasyTier:
+            singleproxy["type"] = "easytier";
+            if(!x.EasyTierNetworkName.empty())
+                singleproxy["network-name"] = x.EasyTierNetworkName;
+            if(!x.EasyTierNetworkSecret.empty())
+                singleproxy["network-secret"] = x.EasyTierNetworkSecret;
+            if(!x.EasyTierHostname.empty())
+                singleproxy["hostname"] = x.EasyTierHostname;
+            if(!x.EasyTierIPv4.empty())
+                singleproxy["ipv4"] = x.EasyTierIPv4;
+            if(!x.EasyTierDHCP.is_undef())
+                singleproxy["dhcp"] = x.EasyTierDHCP.get();
+            if(!x.EasyTierPeers.empty())
+            {
+                for(auto &item : x.EasyTierPeers)
+                    singleproxy["peers"].push_back(item);
+            }
+            if(!x.EasyTierListeners.empty())
+            {
+                for(auto &item : x.EasyTierListeners)
+                    singleproxy["listeners"].push_back(item);
+            }
+            if(!x.EasyTierNoListener.is_undef())
+                singleproxy["no-listener"] = x.EasyTierNoListener.get();
+            if(!x.EasyTierMappedListeners.empty())
+            {
+                for(auto &item : x.EasyTierMappedListeners)
+                    singleproxy["mapped-listeners"].push_back(item);
+            }
+            if(!x.EasyTierExitNodes.empty())
+            {
+                for(auto &item : x.EasyTierExitNodes)
+                    singleproxy["exit-nodes"].push_back(item);
+            }
+            if(!x.EasyTierProxyNetworks.empty())
+            {
+                for(auto &item : x.EasyTierProxyNetworks)
+                    singleproxy["proxy-networks"].push_back(item);
+            }
+            if(!x.EasyTierInstanceName.empty())
+                singleproxy["instance-name"] = x.EasyTierInstanceName;
+            if(!x.EasyTierStateDir.empty())
+                singleproxy["state-dir"] = x.EasyTierStateDir;
+            if(!x.UDP.is_undef())
+                singleproxy["udp"] = x.UDP.get();
+            if(!x.EasyTierAcceptDNS.is_undef())
+                singleproxy["accept-dns"] = x.EasyTierAcceptDNS.get();
+            if(!x.EasyTierEnableExitNode.is_undef())
+                singleproxy["enable-exit-node"] = x.EasyTierEnableExitNode.get();
+            if(!x.EasyTierEnableEncryption.is_undef())
+                singleproxy["enable-encryption"] = x.EasyTierEnableEncryption.get();
+            if(!x.EasyTierEncryptionAlgorithm.empty())
+                singleproxy["encryption-algorithm"] = x.EasyTierEncryptionAlgorithm;
+            if(!x.EasyTierPrivateMode.is_undef())
+                singleproxy["private-mode"] = x.EasyTierPrivateMode.get();
+            if(!x.EasyTierLatencyFirst.is_undef())
+                singleproxy["latency-first"] = x.EasyTierLatencyFirst.get();
+            if(!x.EasyTierDisableP2P.is_undef())
+                singleproxy["disable-p2p"] = x.EasyTierDisableP2P.get();
+            if(!x.EasyTierEnableKCPProxy.is_undef())
+                singleproxy["enable-kcp-proxy"] = x.EasyTierEnableKCPProxy.get();
+            if(!x.EasyTierDisableKCPInput.is_undef())
+                singleproxy["disable-kcp-input"] = x.EasyTierDisableKCPInput.get();
+            if(!x.EasyTierEnableQUICProxy.is_undef())
+                singleproxy["enable-quic-proxy"] = x.EasyTierEnableQUICProxy.get();
+            if(!x.EasyTierDisableQUICInput.is_undef())
+                singleproxy["disable-quic-input"] = x.EasyTierDisableQUICInput.get();
+            if(x.Mtu > 0)
+                singleproxy["mtu"] = x.Mtu;
+            if(!x.EasyTierTLDDNSZone.empty())
+                singleproxy["tld-dns-zone"] = x.EasyTierTLDDNSZone;
+            if(!x.EasyTierSecureMode.is_undef())
+                singleproxy["secure-mode"] = x.EasyTierSecureMode.get();
+            if(!x.EasyTierLocalPrivateKey.empty())
+                singleproxy["local-private-key"] = x.EasyTierLocalPrivateKey;
+            if(!x.EasyTierLocalPublicKey.empty())
+                singleproxy["local-public-key"] = x.EasyTierLocalPublicKey;
+            if(!tfo.is_undef())
+                singleproxy["tfo"] = tfo.get();
+            if(!x.MPTCP.is_undef())
+                singleproxy["mptcp"] = x.MPTCP.get();
+            if(!x.InterfaceName.empty())
+                singleproxy["interface-name"] = x.InterfaceName;
+            if(x.RoutingMark > 0)
+                singleproxy["routing-mark"] = x.RoutingMark;
+            if(!x.IPVersion.empty())
+                singleproxy["ip-version"] = x.IPVersion;
             break;
         default:
             continue;
@@ -1553,10 +2994,14 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
 
         // UDP is not supported yet in clash using snell
         // sees in https://dreamacro.github.io/clash/configuration/outbound.html#snell
-        if(udp && x.Type != ProxyType::Snell && x.Type != ProxyType::TUIC)
-            singleproxy["udp"] = true;
+        if(!udp.is_undef() && x.Type != ProxyType::Snell && x.Type != ProxyType::TUIC)
+            singleproxy["udp"] = udp.get();
+        if(!clashR && !x.UnderlyingProxy.empty())
+            singleproxy["dialer-proxy"] = x.UnderlyingProxy;
         if(!tfo.is_undef())
-            singleproxy["tfo"] = tfo.get();
+            singleproxy["fast-open"] = tfo.get();
+        if(!x.NameCertVerify.empty())
+            singleproxy["name-cert-verify"] = x.NameCertVerify;
         if(proxy_block)
             singleproxy.SetStyle(YAML::EmitterStyle::Block);
         else
@@ -1589,7 +3034,7 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
         string_array filtered_nodelist;
 
         singlegroup["name"] = x.Name;
-        if(x.Type == ProxyGroupType::Smart)
+        if (x.Type == ProxyGroupType::Smart)
             singlegroup["type"] = "url-test";
         else
             singlegroup["type"] = x.TypeStr();
@@ -1661,9 +3106,49 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
         original_groups.SetStyle(YAML::EmitterStyle::Flow);
 
     if(ext.clash_new_field_name)
-        yamlnode["proxy-groups"] = original_groups;
+    {
+        if (original_groups.size() > 0)
+            yamlnode["proxy-groups"] = original_groups;
+        else
+            yamlnode.remove("proxy-groups");
+    }
     else
-        yamlnode["Proxy Group"] = original_groups;
+    {
+        if (original_groups.size() > 0)
+            yamlnode["Proxy Group"] = original_groups;
+        else
+            yamlnode.remove("Proxy Group");
+    }
+}
+
+std::string formatterShortId(std::string input) {
+    std::string target = "short-id:";
+    size_t startPos = input.find(target);
+    while (startPos != std::string::npos) {
+        // 查找对应实例的结束位置（取最近的 ',' '\n' 或 '}'）
+        size_t valueStart = startPos + target.length();
+        size_t endComma = input.find(",", valueStart);
+        size_t endBrace = input.find("}", valueStart);
+        size_t endNewline = input.find("\n", valueStart);
+        size_t endPos = std::min({endComma, endBrace, endNewline});
+        if (endPos != std::string::npos) {
+            // 提取原始id
+            std::string originalId = input.substr(valueStart, endPos - valueStart);
+            // 去除原始id中的空格
+            originalId.erase(remove_if(originalId.begin(), originalId.end(), ::isspace), originalId.end());
+            // 若已被引号包裹则不再添加（yaml-cpp对纯数字等会自动加引号）
+            std::string modifiedId;
+            if (!originalId.empty() && originalId.front() == '"' && originalId.back() == '"')
+                modifiedId = " " + originalId + " ";
+            else
+                modifiedId = " \"" + originalId + "\" ";
+            // 替换原始id为修改后的id
+            input.replace(valueStart, endPos - valueStart, modifiedId);
+        }
+        // 继续查找下一个实例
+        startPos = input.find(target, startPos + 1);
+    }
+    return input;
 }
 
 std::string proxyToClash(std::vector<Proxy> &nodes, const std::string &base_conf, std::vector<RulesetContent> &ruleset_content_array, const ProxyGroupConfigs &extra_proxy_group, bool clashR, extra_settings &ext)
@@ -1683,7 +3168,7 @@ std::string proxyToClash(std::vector<Proxy> &nodes, const std::string &base_conf
     proxyToClash(nodes, yamlnode, extra_proxy_group, clashR, ext);
 
     if(ext.nodelist)
-        return YAML::Dump(yamlnode);
+        return formatterShortId(YAML::Dump(yamlnode));
 
     /*
     if(ext.enable_rule_generator)
@@ -1692,7 +3177,7 @@ std::string proxyToClash(std::vector<Proxy> &nodes, const std::string &base_conf
     return YAML::Dump(yamlnode);
     */
     if(!ext.enable_rule_generator)
-        return YAML::Dump(yamlnode);
+        return formatterShortId(YAML::Dump(yamlnode));
 
     if(!ext.managed_config_prefix.empty() || ext.clash_script)
     {
@@ -1704,16 +3189,17 @@ std::string proxyToClash(std::vector<Proxy> &nodes, const std::string &base_conf
                 yamlnode["mode"] = ext.clash_script ? "Script" : "Rule";
         }
 
-        renderClashScript(yamlnode, ruleset_content_array, ext.managed_config_prefix, ext.clash_script, ext.overwrite_original_rules, ext.clash_classical_ruleset);
-        return YAML::Dump(yamlnode);
+        renderClashScript(yamlnode, ruleset_content_array, ext.managed_config_prefix, ext.clash_script, ext.overwrite_original_rules, ext.use_domain_set);
+        return formatterShortId(YAML::Dump(yamlnode));
     }
 
     std::string output_content = rulesetToClashStr(yamlnode, ruleset_content_array, ext.overwrite_original_rules, ext.clash_new_field_name);
     output_content.insert(0, YAML::Dump(yamlnode));
     //rulesetToClash(yamlnode, ruleset_content_array, ext.overwrite_original_rules, ext.clash_new_field_name);
     //std::string output_content = YAML::Dump(yamlnode);
+    output_content = replaceAllDistinct(output_content, "!<str> ", "");
 
-    return output_content;
+    return formatterShortId(std::move(output_content));
 }
 
 // peer = (public-key = bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=, allowed-ips = "0.0.0.0/0, ::/0", endpoint = engage.cloudflareclient.com:2408, client-id = 139/184/125),(public-key = bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=, endpoint = engage.cloudflareclient.com:2408)
@@ -1794,14 +3280,7 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
         switch (x.Type)
         {
         case ProxyType::Shadowsocks:
-            if(surge_ver >= 3 || surge_ver == -3)
-            {
-                proxy = "ss, " + hostname + ", " + port + ", encrypt-method=" + method + ", password=" + password;
-            }
-            else
-            {
-                proxy = "custom, "  + hostname + ", " + port + ", " + method + ", " + password + ", https://github.com/pobizhe/SSEncrypt/raw/master/SSEncrypt.module";
-            }
+            proxy = "ss, " + hostname + ", " + port + ", encrypt-method=" + method + ", password=" + password;
             if(!plugin.empty())
             {
                 switch(hash_(plugin))
@@ -1815,22 +3294,25 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                     continue;
                 }
             }
+            if(x.UDPPort > 0 && x.UDPPort != x.Port)
+                proxy += ", udp-port=" + std::to_string(x.UDPPort);
             break;
         case ProxyType::VMess:
             if(surge_ver < 4 && surge_ver != -3)
                 continue;
-            proxy = "vmess, " + hostname + ", " + port + ", username=" + id + ", tls=" + (tlssecure ? "true" : "false") +  ", vmess-aead=" + (x.AlterId == 0 ? "true" : "false");
-            if(tlssecure && !tls13.is_undef())
-                proxy += ", tls13=" + std::string(tls13 ? "true" : "false");
+            proxy = "vmess, " + hostname + ", " + port + ", username=" + id;
+            if(surge_ver == -3)
+            {
+                if(!udp.is_undef())
+                    proxy += ", udp-relay=" + udp.get_str();
+                udp = tribool();
+            }
             switch(hash_(transproto))
             {
             case "tcp"_hash:
                 break;
             case "ws"_hash:
-                if(host.empty())
-                    proxy += ", ws=true, ws-path=" + path + ", sni=" + hostname;
-                else
-                    proxy += ", ws=true, ws-path=" + path + ", sni=" + host;
+                proxy += ", ws=true, ws-path=" + (path.empty() ? "/" : path);
                 if(!host.empty())
                     headers.push_back("Host:" + host);
                 if(!edge.empty())
@@ -1841,11 +3323,28 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
             default:
                 continue;
             }
-            if(!scv.is_undef())
+            proxy += ", tls=" + std::string(tlssecure ? "true" : "false");
+            if(tlssecure && !scv.is_undef())
                 proxy += ", skip-cert-verify=" + scv.get_str();
+            if(tlssecure)
+            {
+                if(!x.ServerName.empty())
+                    proxy += ", sni=" + x.ServerName;
+                else if(!x.SNI.empty())
+                    proxy += ", sni=" + x.SNI;
+                else if(!host.empty())
+                    proxy += ", sni=" + host;
+                else
+                    proxy += ", sni=" + hostname;
+            }
+            proxy += ", vmess-aead=" + std::string(x.AlterId == 0 ? "true" : "false");
+            if(tlssecure && !x.Fingerprint.empty())
+                proxy += ", server-cert-fingerprint-sha256=" + x.Fingerprint;
+            if(tlssecure && !tls13.is_undef())
+                proxy += ", tls13=" + std::string(tls13 ? "true" : "false");
             break;
         case ProxyType::ShadowsocksR:
-            if(ext.surge_ssr_path.empty() || surge_ver < 2)
+            if(ext.surge_ssr_path.empty() || surge_ver < 4)
                 continue;
             proxy = "external, exec=\"" + ext.surge_ssr_path + "\", args=\"";
             args = {"-l", std::to_string(local_port), "-s", hostname, "-p", port, "-m", method, "-k", password, "-o", obfs, "-O", protocol};
@@ -1868,60 +3367,114 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
             local_port++;
             break;
         case ProxyType::SOCKS5:
-            proxy = "socks5, " + hostname + ", " + port;
-            if(!username.empty())
-                proxy += ", username=" + username;
-            if(!password.empty())
-                proxy += ", password=" + password;
-            if(!scv.is_undef())
+            proxy = (surge_ver == -3 && tlssecure) ? "socks5-tls, " : "socks5, ";
+            proxy += hostname + ", " + port;
+            if(surge_ver == -3)
+            {
+                if(!username.empty())
+                    proxy += ", " + username;
+                if(!password.empty())
+                    proxy += ", " + password;
+            }
+            else
+            {
+                if(!username.empty())
+                    proxy += ", username=" + username;
+                if(!password.empty())
+                    proxy += ", password=" + password;
+            }
+            if(surge_ver == -3 ? tlssecure && !scv.is_undef() : !scv.is_undef())
                 proxy += ", skip-cert-verify=" + scv.get_str();
+            if(surge_ver == -3 && tlssecure && !sni.empty())
+                proxy += ", sni=" + sni;
+            if(surge_ver == -3 && tlssecure && !x.Fingerprint.empty())
+                proxy += ", server-cert-fingerprint-sha256=" + x.Fingerprint;
             break;
         case ProxyType::HTTPS:
             if(surge_ver == -3)
             {
-                proxy = "https, " + hostname + ", " + port + ", " + username + ", " + password;
+                proxy = "https, " + hostname + ", " + port;
+                if(!username.empty())
+                    proxy += ", " + username;
+                if(!password.empty())
+                    proxy += ", " + password;
                 if(!scv.is_undef())
                     proxy += ", skip-cert-verify=" + scv.get_str();
+                if(!sni.empty())
+                    proxy += ", sni=" + sni;
+                if(!x.Fingerprint.empty())
+                    proxy += ", server-cert-fingerprint-sha256=" + x.Fingerprint;
                 break;
             }
             [[fallthrough]];
         case ProxyType::HTTP:
-            proxy = "http, " + hostname + ", " + port;
-            if(!username.empty())
-                proxy += ", username=" + username;
-            if(!password.empty())
-                proxy += ", password=" + password;
-            proxy += std::string(", tls=") + (x.TLSSecure ? "true" : "false");
-            if(!scv.is_undef())
-                proxy += ", skip-cert-verify=" + scv.get_str();
+            if(surge_ver == -3)
+            {
+                proxy = "http, " + hostname + ", " + port;
+                if(!username.empty())
+                    proxy += ", " + username;
+                if(!password.empty())
+                    proxy += ", " + password;
+            }
+            else
+            {
+                proxy = "http, " + hostname + ", " + port;
+                if(!username.empty())
+                    proxy += ", username=" + username;
+                if(!password.empty())
+                    proxy += ", password=" + password;
+                proxy += std::string(", tls=") + (x.TLSSecure ? "true" : "false");
+                if(!scv.is_undef())
+                    proxy += ", skip-cert-verify=" + scv.get_str();
+                if(!x.AlwaysUseConnect.is_undef())
+                    proxy += ", always-use-connect=" + std::string(x.AlwaysUseConnect.get() ? "true" : "false");
+                if(!x.CustomHeaders.empty())
+                    proxy += ", headers=" + x.CustomHeaders;
+                if(x.MaxStreams > 0)
+                    proxy += ", max-streams=" + std::to_string(x.MaxStreams);
+            }
             break;
         case ProxyType::Trojan:
             if(surge_ver < 4 && surge_ver != -3)
                 continue;
             proxy = "trojan, " + hostname + ", " + port + ", password=" + password;
-            if(x.SnellVersion != 0)
+            if(x.SnellVersion != 0 && surge_ver != -3)
                 proxy += ", version=" + std::to_string(x.SnellVersion);
+            if(surge_ver == -3 && !udp.is_undef())
+            {
+                proxy += ", udp-relay=" + udp.get_str();
+                udp = tribool();
+            }
+            if(!scv.is_undef())
+                proxy += ", skip-cert-verify=" + scv.get_str();
             if(!sni.empty())
                 proxy += ", sni=" + sni;
             else if(!host.empty())
                 proxy += ", sni=" + host;
             if (transproto == "ws") {
-                proxy += ", ws=true, ws-path=" + path;
+                proxy += ", ws=true, ws-path=" + (path.empty() ? "/" : path);
                 if (!host.empty())
-                    headers.push_back("Host:\"" + host + "\"");
+                    headers.push_back("Host:" + host);
                 if (!headers.empty())
                     proxy += ", ws-headers=" + join(headers, "|");
             }
-            if(!scv.is_undef())
-                proxy += ", skip-cert-verify=" + scv.get_str();
+            if(!x.Fingerprint.empty())
+                proxy += ", server-cert-fingerprint-sha256=" + x.Fingerprint;
             break;
         case ProxyType::Snell:
             proxy = "snell, " + hostname + ", " + port + ", psk=" + password;
+            if(surge_ver == -3 && !udp.is_undef())
+            {
+                proxy += ", udp-relay=" + udp.get_str();
+                udp = tribool();
+            }
             if(!obfs.empty())
             {
                 proxy += ", obfs=" + obfs;
                 if(!host.empty())
                     proxy += ", obfs-host=" + host;
+                if(obfs == "http" && !path.empty())
+                    proxy += ", obfs-uri=" + path;
             }
             if(x.SnellVersion != 0)
                 proxy += ", version=" + std::to_string(x.SnellVersion);
@@ -1933,7 +3486,7 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
             section = ss.str().substr(0, 5);
             real_section = "WireGuard " + section;
             proxy = "wireguard, section-name=" + section;
-            if(!x.TestUrl.empty())
+            if(!x.TestUrl.empty() && surge_ver != -3)
                 proxy += ", test-url=" + x.TestUrl;
             ini.set(real_section, "private-key", x.PrivateKey);
             ini.set(real_section, "self-ip", x.SelfIP);
@@ -1943,29 +3496,174 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                 ini.set(real_section, "dns-server", join(x.DnsServers, ","));
             if(x.Mtu > 0)
                 ini.set(real_section, "mtu", std::to_string(x.Mtu));
+            if(!x.PreferIPv6.is_undef() && surge_ver != -3)
+                ini.set(real_section, "prefer-ipv6", x.PreferIPv6.get() ? "true" : "false");
             ini.set(real_section, "peer", "(" + generatePeer(x) + ")");
+            if(x.TestTimeout > 0 && surge_ver != -3)
+                proxy += ", test-timeout=" + std::to_string(x.TestTimeout);
             break;
         case ProxyType::Hysteria2:
-            if(surge_ver < 4)
+            if(surge_ver < 5 && surge_ver != -3)
                 continue;
-            proxy = "hysteria, " + hostname + ", " + port + ", password=" + password;
+            proxy = "hysteria2, " + hostname + ", " + port + ", password=" + password;
             if(x.DownSpeed)
                 proxy += ", download-bandwidth=" + std::to_string(x.DownSpeed);
+            else if(!x.Down.empty())
+                proxy += ", download-bandwidth=" + x.Down;
+            if(x.UpSpeed)
+                proxy += ", upload-bandwidth=" + std::to_string(x.UpSpeed);
+            else if(!x.Up.empty())
+                proxy += ", upload-bandwidth=" + x.Up;
+            if(!x.Ports.empty() && x.Ports != port)
+                proxy += ", port-hopping=\"" + x.Ports + "\"";
+            if(x.HopInterval)
+                proxy += ", port-hopping-interval=" + std::to_string(x.HopInterval);
             if(!scv.is_undef())
                 proxy += ",skip-cert-verify=" + std::string(scv.get() ? "true" : "false");
             if(!x.Fingerprint.empty())
                 proxy += ",server-cert-fingerprint-sha256=" + x.Fingerprint;
-            if(!x.ServerName.empty())
-                proxy += ",sni=" + x.ServerName;
-            break;
-        case ProxyType::TUIC:
-            if(surge_ver < 4)
-                continue;
-            proxy = "tuic-v5, " + hostname + ", " + port + ", password=" + password;
-            if(!x.UUID.empty())
-                    proxy += ",uuid=" + x.UUID;
             if(!x.SNI.empty())
                 proxy += ",sni=" + x.SNI;
+            else if(!x.ServerName.empty())
+                proxy += ",sni=" + x.ServerName;
+            if(toLower(x.OBFS) == "salamander" && !x.OBFSParam.empty())
+                proxy += ",salamander-password=" + x.OBFSParam;
+            if(!x.GeckoPassword.empty() && surge_ver != -3)
+                proxy += ",gecko-password=" + x.GeckoPassword;
+            break;
+        case ProxyType::TUIC:
+            if(surge_ver < 5 && surge_ver != -3)
+                continue;
+            if(surge_ver == -3 && (x.TuicVersion == 4 || (!x.AuthStr.empty() && x.UUID.empty())))
+                continue; // Surfboard only supports TUIC v5
+            if(x.TuicVersion == 4 || (!x.AuthStr.empty() && x.UUID.empty()))
+            {
+                proxy = "tuic, " + hostname + ", " + port + ", token=" + (x.AuthStr.empty() ? password : x.AuthStr);
+            }
+            else
+            {
+                proxy = "tuic-v5, " + hostname + ", " + port + ", password=" + password;
+                if(!x.UUID.empty())
+                    proxy += ",uuid=" + x.UUID;
+            }
+            if(!x.SNI.empty())
+                proxy += ",sni=" + x.SNI;
+            else if(!x.ServerName.empty())
+                proxy += ",sni=" + x.ServerName;
+            if(!x.Alpn.empty())
+                proxy += ",alpn=" + x.Alpn;
+            else if(!x.AlpnList.empty())
+                proxy += ",alpn=" + x.AlpnList.front();
+            if(!x.CongestionController.empty())
+                proxy += ",congestion-controller=" + x.CongestionController;
+            if(!x.Ports.empty() && x.Ports != port)
+                proxy += ",port-hopping=\"" + x.Ports + "\"";
+            if(x.HopInterval)
+                proxy += ",port-hopping-interval=" + std::to_string(x.HopInterval);
+            if(!scv.is_undef())
+                proxy += ",skip-cert-verify=" + scv.get_str();
+            break;
+        case ProxyType::AnyTLS:
+            if(surge_ver < 5 && surge_ver != -3)
+                continue;
+            if(surge_ver == -3)
+            {
+                proxy = "anytls, " + hostname + ", " + port + ", " + password;
+                if(!scv.is_undef())
+                    proxy += ", skip-cert-verify=" + scv.get_str();
+                if(!x.SNI.empty())
+                    proxy += ", sni=" + x.SNI;
+                else if(!x.ServerName.empty())
+                    proxy += ", sni=" + x.ServerName;
+                if(!x.Fingerprint.empty())
+                    proxy += ", server-cert-fingerprint-sha256=" + x.Fingerprint;
+                if(!x.Reuse.is_undef())
+                    proxy += ", reuse=" + x.Reuse.get_str();
+            }
+            else
+            {
+                proxy = "anytls, " + hostname + ", " + port + ", password=" + password;
+                if(!x.SNI.empty())
+                    proxy += ", sni=" + x.SNI;
+                else if(!x.ServerName.empty())
+                    proxy += ", sni=" + x.ServerName;
+                if(!x.AlpnList.empty())
+                    proxy += ", alpn=" + (x.AlpnList.size() > 1 ? "\"" + join(x.AlpnList, ",") + "\"" : x.AlpnList.front());
+                if(!x.Fingerprint.empty())
+                    proxy += ", server-cert-fingerprint-sha256=" + x.Fingerprint;
+                if(!x.IPVersion.empty())
+                    proxy += ", ip-version=" + x.IPVersion;
+                if(!tls13.is_undef())
+                    proxy += ", tls13=" + tls13.get_str();
+                if(!scv.is_undef())
+                    proxy += ", skip-cert-verify=" + scv.get_str();
+                if(!x.Reuse.is_undef())
+                    proxy += ", reuse=" + x.Reuse.get_str();
+            }
+            break;
+        case ProxyType::Masque:
+            if(surge_ver < 5 && surge_ver != -3)
+                continue;
+            // Surge masque is RFC 9298 (user/pass auth), incompatible with mihomo's WARP-style masque (private-key based)
+            if(!x.PrivateKey.empty() || !x.PublicKey.empty())
+                continue;
+            proxy = "masque, " + hostname + ", " + port;
+            if(!username.empty())
+                proxy += ", username=" + username;
+            if(!password.empty())
+                proxy += ", password=" + password;
+            if(!x.Ports.empty() && x.Ports != port)
+                proxy += ", port-hopping=\"" + x.Ports + "\"";
+            if(x.HopInterval)
+                proxy += ", port-hopping-interval=" + std::to_string(x.HopInterval);
+            if(!x.SNI.empty())
+                proxy += ", sni=" + x.SNI;
+            if(!x.AlpnList.empty())
+                proxy += ", alpn=" + (x.AlpnList.size() > 1 ? "\"" + join(x.AlpnList, ",") + "\"" : x.AlpnList.front());
+            if(!scv.is_undef())
+                proxy += ", skip-cert-verify=" + scv.get_str();
+            break;
+        case ProxyType::TrustTunnel:
+            if(surge_ver < 5 && surge_ver != -3)
+                continue;
+            proxy = "trust-tunnel, " + hostname + ", " + port;
+            if(!username.empty())
+                proxy += ", user=" + username;
+            if(!password.empty())
+                proxy += ", password=" + password;
+            if(!x.SNI.empty())
+                proxy += ", sni=" + x.SNI;
+            else if(!x.ServerName.empty())
+                proxy += ", sni=" + x.ServerName;
+            if(!x.AlpnList.empty())
+                proxy += ", alpn=" + (x.AlpnList.size() > 1 ? "\"" + join(x.AlpnList, ",") + "\"" : x.AlpnList.front());
+            if(!x.ClientFingerprint.empty())
+                proxy += ", client-fingerprint=" + x.ClientFingerprint;
+            if(!x.HealthCheck.is_undef())
+                proxy += ", health-check=" + std::string(x.HealthCheck.get() ? "true" : "false");
+            if(!x.QUIC.is_undef())
+                proxy += ", quic=" + std::string(x.QUIC.get() ? "true" : "false");
+            if(!x.H3.is_undef())
+                proxy += ", h3=" + std::string(x.H3.get() ? "true" : "false");
+            if(x.GrpcMaxStreams > 0)
+                proxy += ", max-streams=" + std::to_string(x.GrpcMaxStreams);
+            if(!x.CustomHeaders.empty())
+                proxy += ", headers=" + x.CustomHeaders;
+            if(!x.CongestionController.empty())
+                proxy += ", congestion-controller=" + x.CongestionController;
+            if(!scv.is_undef())
+                proxy += ", skip-cert-verify=" + scv.get_str();
+            break;
+        case ProxyType::SSH:
+            if(surge_ver < 5 && surge_ver != -3)
+                continue;
+            proxy = "ssh, " + hostname + ", " + port;
+            if(!username.empty())
+                proxy += ", username=" + username;
+            if(!password.empty())
+                proxy += ", password=" + password;
+            if(!x.SSHPrivateKey.empty())
+                proxy += ", private-key=\"" + x.SSHPrivateKey + "\"";
             break;
         default:
             continue;
@@ -1973,13 +3671,16 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
 
         if(!tfo.is_undef())
             proxy += ", tfo=" + tfo.get_str();
-        if(!udp.is_undef())
+        // SSH and Trust Tunnel do not support UDP relay per Surge manual
+        if(!udp.is_undef() && x.Type != ProxyType::SSH && x.Type != ProxyType::TrustTunnel)
             proxy += ", udp-relay=" + udp.get_str();
+        if(surge_ver == -3 && !x.AnyTLSBlockQUIC.is_undef())
+            proxy += ", block-quic=" + std::string(x.AnyTLSBlockQUIC.get() ? "true" : "false");
 
-        if(underlying_proxy != "")
+        if (!underlying_proxy.empty())
             proxy += ", underlying-proxy=" + underlying_proxy;
 
-        if(ext.nodelist)
+        if (ext.nodelist)
             output_nodelist += x.Remark + " = " + proxy + "\n";
         else
         {
@@ -2071,23 +3772,28 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
     }
 
     if(ext.enable_rule_generator)
-        rulesetToSurge(ini, ruleset_content_array, surge_ver, ext.overwrite_original_rules, ext.managed_config_prefix);
+        rulesetToSurge(ini, ruleset_content_array, surge_ver, ext.overwrite_original_rules, ext.managed_config_prefix, !ext.use_domain_set);
 
     return ini.to_string();
 }
 
+std::string proxyToSurfboard(std::vector<Proxy> &nodes, const std::string &base_conf, std::vector<RulesetContent> &ruleset_content_array, const ProxyGroupConfigs &extra_proxy_group, extra_settings &ext)
+{
+    return proxyToSurge(nodes, base_conf, ruleset_content_array, extra_proxy_group, -3, ext);
+}
+
 std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &ext)
 {
-    /// types: SS=1 SSR=2 VMess=4 Trojan=8 hysteria=16 vless=32 sudoku=64 hysteria2=128 tuic=256 anytls=512 trusttunnel=1024 mieru=2048 wireguard=4096 masque=8192
+    /// types: SS=1 SSR=2 VMess=4 Trojan=8 hysteria=16 vless=32 sudoku=64 hysteria2=128 tuic=256 anytls=512 trusttunnel=1024 mieru=2048 wireguard=4096 masque=8192 openvpn=16384 shadowquic=32768
     std::string proxyStr, allLinks;
-    bool ss = GETBIT(types, 1), ssr = GETBIT(types, 2), vmess = GETBIT(types, 3), trojan = GETBIT(types, 4), hysteria = GETBIT(types, 5), vless = GETBIT(types, 6), sudoku = GETBIT(types, 7), hysteria2 = GETBIT(types, 8), tuic = GETBIT(types, 9), anytls = GETBIT(types, 10), trusttunnel = GETBIT(types, 11), mieru = GETBIT(types, 12), wireguard = GETBIT(types, 13), masque = GETBIT(types, 14);
+    bool ss = GETBIT(types, 1), ssr = GETBIT(types, 2), vmess = GETBIT(types, 3), trojan = GETBIT(types, 4), hysteria = GETBIT(types, 5), vless = GETBIT(types, 6), sudoku = GETBIT(types, 7), hysteria2 = GETBIT(types, 8), tuic = GETBIT(types, 9), anytls = GETBIT(types, 10), trusttunnel = GETBIT(types, 11), mieru = GETBIT(types, 12), wireguard = GETBIT(types, 13), masque = GETBIT(types, 14), openvpn = GETBIT(types, 15), shadowquic = GETBIT(types, 16);
 
     for(Proxy &x : nodes)
     {
         std::string remark = x.Remark;
-        std::string &hostname = x.Hostname, &password = x.Password, &username = x.Username, &method = x.EncryptMethod, &plugin = x.Plugin, &pluginopts = x.PluginOption, &protocol = x.Protocol, &protoparam = x.ProtocolParam, &obfs = x.OBFS, &obfsparam = x.OBFSParam, &transproto = x.TransferProtocol, &host = x.Host, &path = x.Path, &fake_type = x.FakeType, &flow = x.Flow, &public_key = x.PublicKey, &short_id = x.ShortID, &spider_x = x.SpiderX, &fingerprint = x.Fingerprint, &packet_encoding = x.PacketEncoding, &mode = x.GRPCMode, &obfsPassword = x.OBFSPassword, &tls = x.TLSStr, &faketype = x.FakeType, &ports = x.Ports;
+        std::string &hostname = x.Hostname, &password = x.Password, &username = x.Username, &method = x.EncryptMethod, &plugin = x.Plugin, &pluginopts = x.PluginOption, &protocol = x.Protocol, &protoparam = x.ProtocolParam, &obfs = x.OBFS, &obfsparam = x.OBFSParam, &transproto = x.TransferProtocol, &host = x.Host, &path = x.Path, &fake_type = x.FakeType, &flow = x.Flow, &public_key = x.PublicKey, &short_id = x.ShortID, &spider_x = x.SpiderX, &fingerprint = x.Fingerprint, &packet_encoding = x.PacketEncoding, &mode = x.GRPCMode, &tls = x.TLSStr, &faketype = x.FakeType, &ports = x.Ports;
         std::string id = (x.Type == ProxyType::VLESS) ? x.UUID : x.UserId;
-        std::string sni = (x.Type == ProxyType::VLESS || x.Type == ProxyType::Hysteria || x.Type == ProxyType::Hysteria2 || x.Type == ProxyType::TUIC || x.Type == ProxyType::AnyTLS) ? x.SNI : x.ServerName;
+        std::string sni = (x.Type == ProxyType::VLESS || x.Type == ProxyType::Hysteria || x.Type == ProxyType::Hysteria2 || x.Type == ProxyType::TUIC || x.Type == ProxyType::AnyTLS || x.Type == ProxyType::ShadowQuic) ? x.SNI : x.ServerName;
         bool &tlssecure = x.TLSSecure;
         std::vector<string> alpns = x.AlpnList;
         std::string port = std::to_string(x.Port);
@@ -2188,7 +3894,7 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
                     vmess_client_fp = x.ClientFingerprint;
                 else if(!fingerprint.empty())
                     vmess_client_fp = fingerprint;
-                
+
                 proxyStr = "vmess://" + base64Encode(vmessLinkConstruct(remark, hostname, port, faketype, id, aid, transproto, path, host, tlssecure ? "tls" : "", vmess_sni, vmess_alpn, fingerprint, vmess_skip_cert_verify, vmess_udp, vmess_tfo, vmess_ip_version, vmess_packet_encoding, vmess_authlen, vmess_globalpad, vmess_ech_enable, vmess_ech_config, vmess_client_fp));
             }
             break;
@@ -2275,7 +3981,7 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
         case ProxyType::TrustTunnel:
             if(!trusttunnel)
                 continue;
-            proxyStr = "trusttunnel://" + base64Encode(username + ":" + password) + "@" + hostname + ":" + port;
+            proxyStr = "trusttunnel://" + urlSafeBase64Encode(username + ":" + password) + "@" + hostname + ":" + port;
             {
                 std::string query;
                 auto append_query = [&query](const std::string &key, const std::string &value) {
@@ -2290,15 +3996,116 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
                 else if(!host.empty())
                     append_query("sni", host);
                 if(!alpns.empty())
-                    append_query("alpn", alpns[0]);
+                    append_query("alpn", join(alpns, ","));
                 if(!x.ClientFingerprint.empty())
                     append_query("client-fingerprint", x.ClientFingerprint);
                 if(!x.HealthCheck.is_undef())
                     append_query("health-check", x.HealthCheck.get() ? "true" : "false");
+                if(!x.UDP.is_undef())
+                    append_query("udp", x.UDP.get() ? "1" : "0");
+                if(!x.AllowInsecure.is_undef())
+                    append_query("skip-cert-verify", x.AllowInsecure.get() ? "1" : "0");
                 if(!x.QUIC.is_undef())
                     append_query("quic", x.QUIC.get() ? "true" : "false");
+                if(!x.H3.is_undef())
+                    append_query("h3", x.H3.get() ? "true" : "false");
+                if(!x.CustomHeaders.empty())
+                    append_query("headers", x.CustomHeaders);
                 if(!x.CongestionController.empty())
                     append_query("congestion-controller", x.CongestionController);
+                if(x.CWND > 0)
+                    append_query("cwnd", std::to_string(x.CWND));
+                if(!x.BBRProfile.empty())
+                    append_query("bbr-profile", x.BBRProfile);
+                if(!x.Fingerprint.empty())
+                    append_query("fingerprint", x.Fingerprint);
+                if(!x.Certificate.empty())
+                    append_query("certificate", x.Certificate);
+                if(!x.CertificateKey.empty())
+                    append_query("private-key", x.CertificateKey);
+                if(!x.NameCertVerify.empty())
+                    append_query("name-cert-verify", x.NameCertVerify);
+                if(x.GrpcMaxConnections > 0)
+                    append_query("max-connections", std::to_string(x.GrpcMaxConnections));
+                if(x.GrpcMinStreams > 0)
+                    append_query("min-streams", std::to_string(x.GrpcMinStreams));
+                if(x.GrpcMaxStreams > 0)
+                    append_query("max-streams", std::to_string(x.GrpcMaxStreams));
+                if(!query.empty())
+                    proxyStr += "?" + query;
+            }
+            proxyStr += "#" + urlEncode(remark);
+            break;
+        case ProxyType::Tailscale:
+        case ProxyType::ZeroTier:
+        case ProxyType::SSH:
+            continue;
+        case ProxyType::OpenVPN:
+            if(!openvpn)
+                continue;
+            // OpenVPN URL format: openvpn://[username:password@]server:port?proto=udp&cipher=AES-256-GCM&auth=SHA256&ca=<base64>&cert=<base64>&key=<base64>&tls-crypt=<base64>
+            if(!username.empty() && !password.empty())
+                proxyStr = "openvpn://" + urlEncode(username) + ":" + urlEncode(password) + "@" + hostname + ":" + port;
+            else
+                proxyStr = "openvpn://" + hostname + ":" + port;
+            {
+                std::string query;
+                auto append_query = [&query](const std::string &key, const std::string &value) {
+                    if(value.empty())
+                        return;
+                    if(!query.empty())
+                        query += "&";
+                    query += key + "=" + urlEncode(value);
+                };
+                if(!transproto.empty() && transproto != "udp")
+                    append_query("proto", transproto);
+                if(!x.OpenVPNDev.empty())
+                    append_query("dev", x.OpenVPNDev);
+                if(!method.empty())
+                    append_query("cipher", method);
+                if(!x.Auth.empty())
+                    append_query("auth", x.Auth);
+                if(!x.Ca.empty())
+                    append_query("ca", urlSafeBase64Encode(x.Ca));
+                if(!x.Certificate.empty())
+                    append_query("cert", urlSafeBase64Encode(x.Certificate));
+                if(!x.CertificateKey.empty())
+                    append_query("key", urlSafeBase64Encode(x.CertificateKey));
+                if(!x.OpenVPNTLSCrypt.empty())
+                    append_query("tls-crypt", urlSafeBase64Encode(x.OpenVPNTLSCrypt));
+                if(!x.OpenVPNTLSAuth.empty())
+                    append_query("tls-auth", urlSafeBase64Encode(x.OpenVPNTLSAuth));
+                if(!x.OpenVPNKeyDirection.empty())
+                    append_query("key-direction", x.OpenVPNKeyDirection);
+                if(x.OpenVPNHandshakeTimeout > 0)
+                    append_query("handshake-timeout", std::to_string(x.OpenVPNHandshakeTimeout));
+                if(x.OpenVPNTranWindow >= 0)
+                    append_query("tran-window", std::to_string(x.OpenVPNTranWindow));
+                if(!x.CompLZO.empty())
+                    append_query("comp-lzo", x.CompLZO);
+                if(x.OpenVPNPing > 0)
+                    append_query("ping", std::to_string(x.OpenVPNPing));
+                if(x.OpenVPNPingRestart > 0)
+                    append_query("ping-restart", std::to_string(x.OpenVPNPingRestart));
+                if(x.Mtu > 0)
+                    append_query("mtu", std::to_string(x.Mtu));
+                if(!x.RemoteDnsResolve.is_undef())
+                    append_query("remote-dns-resolve", x.RemoteDnsResolve.get() ? "1" : "0");
+                if(!x.DnsServers.empty())
+                    append_query("dns", join(x.DnsServers, ","));
+                if(!x.UDP.is_undef())
+                    append_query("udp", x.UDP.get() ? "1" : "0");
+                if(!x.OpenVPNPeerInfo.empty())
+                {
+                    std::string peer_info_str;
+                    for(const auto &[k, v] : x.OpenVPNPeerInfo)
+                    {
+                        if(!peer_info_str.empty())
+                            peer_info_str += ";";
+                        peer_info_str += k + "=" + v;
+                    }
+                    append_query("peer-info", peer_info_str);
+                }
                 if(!query.empty())
                     proxyStr += "?" + query;
             }
@@ -2355,6 +4162,8 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
                 proxyStr += "ipv6=" + urlEncode(x.MasqueIPv6) + "&";
             if(x.Mtu > 0)
                 proxyStr += "mtu=" + std::to_string(x.Mtu) + "&";
+            if(!x.TransferProtocol.empty())
+                proxyStr += "network=" + urlEncode(x.TransferProtocol) + "&";
             if(!x.UDP.is_undef())
                 proxyStr += string("udp=") + (x.UDP.get() ? "1" : "0") + "&";
             if(!x.UnderlyingProxy.empty())
@@ -2365,6 +4174,18 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
                 proxyStr += "dns=" + urlEncode(join(x.DnsServers, ",")) + "&";
             if(!x.CongestionController.empty())
                 proxyStr += "congestion_controller=" + urlEncode(x.CongestionController) + "&";
+            if(!x.BBRProfile.empty())
+                proxyStr += "bbr-profile=" + urlEncode(x.BBRProfile) + "&";
+            if(!x.SNI.empty())
+                proxyStr += "sni=" + urlEncode(x.SNI) + "&";
+            if(x.CWND > 0)
+                proxyStr += "cwnd=" + std::to_string(x.CWND) + "&";
+            if(x.HandshakeTimeout > 0)
+                proxyStr += "handshake-timeout=" + std::to_string(x.HandshakeTimeout) + "&";
+            if(!x.AllowInsecure.is_undef() && x.AllowInsecure.get())
+                proxyStr += "insecure=1&";
+            if(!x.MasqueURI.empty())
+                proxyStr += "uri=" + urlEncode(x.MasqueURI) + "&";
             if(proxyStr.back() == '&')
                 proxyStr.pop_back();
             else if(proxyStr.back() == '?')
@@ -2432,15 +4253,32 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
         case ProxyType::Hysteria2:
             if(!hysteria2)
                 continue;
-            proxyStr = "hysteria2://" + password + "@" + hostname + ":" + port + (ports.empty() ? "" : "," + ports) + "?insecure=" + (x.AllowInsecure.get() ? "1" : "0");
-            if(!obfsparam.empty())
             {
-                proxyStr += "&obfs=" + obfsparam;
-                if(!obfsPassword.empty())
-                    proxyStr += "&obfs-password=" + obfsPassword;
+                const std::string auth = password.empty() ? x.Auth : password;
+                auto append_query = [&proxyStr](const std::string &key, const std::string &value) {
+                    if(value.empty())
+                        return;
+                    proxyStr += (proxyStr.find("/?") == std::string::npos ? "/?" : "&");
+                    proxyStr += key + "=" + urlEncode(value);
+                };
+                proxyStr = "hysteria2://";
+                if(!auth.empty())
+                    proxyStr += urlEncode(auth) + "@";
+                proxyStr += isIPv6(hostname) ? ("[" + hostname + "]") : hostname;
+                if(!ports.empty())
+                    proxyStr += ":" + ports;
+                else if(!port.empty())
+                    proxyStr += ":" + port;
+                if(!x.AllowInsecure.is_undef())
+                    append_query("insecure", x.AllowInsecure.get() ? "1" : "0");
+                if(!obfs.empty() && obfs != "none")
+                {
+                    append_query("obfs", obfs);
+                    append_query("obfs-password", obfsparam);
+                }
+                append_query("sni", sni);
+                append_query("pinSHA256", fingerprint);
             }
-            if(!sni.empty())
-                proxyStr += "&sni=" + sni;
             proxyStr += "#" + urlEncode(remark);
             break;
         case ProxyType::TUIC:
@@ -2474,6 +4312,20 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
                 proxyStr += "udp_relay_mode=" + x.UdpRelayMode + "&";
             if(!x.CongestionController.empty())
                 proxyStr += "congestion_control=" + x.CongestionController + "&";
+            if(x.CWND > 0)
+                proxyStr += "cwnd=" + std::to_string(x.CWND) + "&";
+            if(x.RecvWindowConn > 0)
+                proxyStr += "recv_window_conn=" + std::to_string(x.RecvWindowConn) + "&";
+            if(x.RecvWindow > 0)
+                proxyStr += "recv_window=" + std::to_string(x.RecvWindow) + "&";
+            if(!x.DisableMtuDiscovery.is_undef() && x.DisableMtuDiscovery.get())
+                proxyStr += "disable_mtu_discovery=true&";
+            if(x.MaxDatagramFrameSize > 0)
+                proxyStr += "max_datagram_frame_size=" + std::to_string(x.MaxDatagramFrameSize) + "&";
+            if(!x.UDPOverStream.is_undef() && x.UDPOverStream.get())
+                proxyStr += "udp_over_stream=true&";
+            if(x.UDPOverStreamVersion > 0)
+                proxyStr += "udp_over_stream_version=" + std::to_string(x.UDPOverStreamVersion) + "&";
             if(x.MaxUdpRelayPacketSize > 0)
                 proxyStr += "max_udp_relay_packet_size=" + std::to_string(x.MaxUdpRelayPacketSize) + "&";
             if(x.MaxOpenStreams > 0)
@@ -2485,7 +4337,10 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
             if(!x.FastOpen.is_undef() && x.FastOpen.get())
                 proxyStr += "fast_open=true&";
             if(!x.AllowInsecure.is_undef() && x.AllowInsecure.get())
+            {
                 proxyStr += "insecure=true&";
+                proxyStr += "allowInsecure=1&";
+            }
             if(proxyStr.back() == '&')
                 proxyStr.pop_back();
             else if(proxyStr.back() == '?')
@@ -2510,6 +4365,60 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
                         query += "&";
                     query += std::string("insecure=") + (x.AllowInsecure.get() ? "1" : "0");
                 }
+                if(!x.Reuse.is_undef())
+                {
+                    if(!query.empty())
+                        query += "&";
+                    query += std::string("reuse=") + (x.Reuse.get() ? "1" : "0");
+                }
+                if(!query.empty())
+                    proxyStr += "/?" + query;
+            }
+            proxyStr += "#" + urlEncode(remark);
+            break;
+        case ProxyType::ShadowQuic:
+            if(!shadowquic)
+                continue;
+            proxyStr = "shadowquic://" + urlEncode(username) + ":" + urlEncode(password) + "@" + hostname + ":" + port;
+            {
+                std::string query;
+                auto append_query = [&query](const std::string &key, const std::string &value) {
+                    if(value.empty())
+                        return;
+                    if(!query.empty())
+                        query += "&";
+                    query += key + "=" + urlEncode(value);
+                };
+                if(!sni.empty())
+                    append_query("sni", sni);
+                if(!x.AlpnList.empty())
+                    append_query("alpn", join(x.AlpnList, ","));
+                if(!x.QUICVersions.empty())
+                    append_query("quic-versions", join(x.QUICVersions, ","));
+                if(!x.UDPOverStream.is_undef())
+                    append_query("udp-over-stream", x.UDPOverStream.get() ? "1" : "0");
+                if(!x.ZeroRTT.is_undef())
+                    append_query("zero-rtt", x.ZeroRTT.get() ? "1" : "0");
+                if(x.KeepAliveInterval > 0)
+                    append_query("keep-alive-interval", std::to_string(x.KeepAliveInterval));
+                if(!x.CongestionController.empty())
+                    append_query("congestion-controller", x.CongestionController);
+                if(x.CWND > 0)
+                    append_query("cwnd", std::to_string(x.CWND));
+                if(!x.BBRProfile.empty())
+                    append_query("bbr-profile", x.BBRProfile);
+                if(x.RecvWindowConn > 0)
+                    append_query("recv-window-conn", std::to_string(x.RecvWindowConn));
+                if(x.RecvWindow > 0)
+                    append_query("recv-window", std::to_string(x.RecvWindow));
+                if(!x.DisableMtuDiscovery.is_undef())
+                    append_query("disable-mtu-discovery", x.DisableMtuDiscovery.get() ? "1" : "0");
+                if(x.MaxDatagramFrameSize > 0)
+                    append_query("max-datagram-frame-size", std::to_string(x.MaxDatagramFrameSize));
+                if(x.MaxOpenStreams > 0)
+                    append_query("max-open-streams", std::to_string(x.MaxOpenStreams));
+                if(!x.AllowInsecure.is_undef())
+                    append_query("insecure", x.AllowInsecure.get() ? "1" : "0");
                 if(!query.empty())
                     proxyStr += "/?" + query;
             }
@@ -2518,8 +4427,9 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
         case ProxyType::Mieru:
             if(!mieru)
                 continue;
-            // format: mieru://username:password@host?[port=<num>|port-range=<range>]&protocol=<TCP|UDP>&multiplexing=<...>&handshake-mode=<...>&mtu=<...>&udp=<0|1>
-            proxyStr = "mieru://" + username + ":" + password + "@" + hostname;
+            // format: mierus://username:password@host?[port=<num>|port-range=<range>]&protocol=<TCP|UDP>&multiplexing=<...>&handshake-mode=<...>&mtu=<...>&udp=<0|1>
+            // strategy: current Proxy model keeps a single endpoint binding, so export keeps one port/protocol pair.
+            proxyStr = "mierus://" + urlEncode(username) + ":" + urlEncode(password) + "@" + hostname;
             {
                 std::string query;
                 auto append_query = [&query](const std::string &key, const std::string &value) {
@@ -2555,56 +4465,98 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
                 continue;
             proxyStr = "vless://" + (id.empty() ? "00000000-0000-0000-0000-000000000000" : id) + "@" + hostname + ":" + port + "?encryption=none";
             if(!tls.empty() && tls != "none")
-                proxyStr += "&security=" + tls;
+                proxyStr += "&security=" + urlEncode(tls);
             if(!flow.empty())
-                proxyStr += "&flow=" + flow;
+                proxyStr += "&flow=" + urlEncode(flow);
             if(!fingerprint.empty() && fingerprint != "none")
-                proxyStr += "&fp=" + fingerprint;
+                proxyStr += "&fp=" + urlEncode(fingerprint);
+            if(!x.ClientFingerprint.empty())
+                proxyStr += "&client-fingerprint=" + urlEncode(x.ClientFingerprint);
             if(!packet_encoding.empty())
-                proxyStr += "&packet-encoding=" + packet_encoding;
+            {
+                proxyStr += "&packet-encoding=" + urlEncode(packet_encoding);
+                proxyStr += "&packetEncoding=" + urlEncode(packet_encoding);
+            }
+            if(!x.EchConfig.empty())
+            {
+                proxyStr += "&ech-config=" + urlEncode(x.EchConfig);
+                proxyStr += "&ech=" + urlEncode(x.EchConfig);
+            }
+            if(!x.AllowInsecure.is_undef())
+            {
+                proxyStr += "&insecure=" + std::string(x.AllowInsecure.get() ? "1" : "0");
+                proxyStr += "&allowInsecure=" + std::string(x.AllowInsecure.get() ? "1" : "0");
+            }
+            if(!x.UDP.is_undef())
+                proxyStr += "&udp=" + std::string(x.UDP.get() ? "1" : "0");
+            if(!x.TCPFastOpen.is_undef())
+                proxyStr += "&tfo=" + std::string(x.TCPFastOpen.get() ? "1" : "0");
+            if(!x.XUDP.is_undef())
+                proxyStr += "&xudp=" + std::string(x.XUDP.get() ? "1" : "0");
             if(!alpns.empty())
             {
                 for(size_t i = 0; i < alpns.size(); i++)
                 {
                     if(i == 0)
-                        proxyStr += "&alpn=" + alpns[i];
+                        proxyStr += "&alpn=" + urlEncode(alpns[i]);
                     else
-                        proxyStr += "," + alpns[i];
+                        proxyStr += "%2C" + urlEncode(alpns[i]);
                 }
             }
             if(!sni.empty())
-                proxyStr += "&sni=" + sni;
+                proxyStr += "&sni=" + urlEncode(sni);
             if(!transproto.empty())
             {
-                proxyStr += "&type=" + transproto;
+                proxyStr += "&type=" + urlEncode(transproto);
                 switch(hash_(transproto))
                 {
                     case "tcp"_hash:
                         if(!public_key.empty())
-                            proxyStr += "&pbk=" + public_key;
+                            proxyStr += "&pbk=" + urlEncode(public_key);
                         if(!short_id.empty())
-                            proxyStr += "&sid=" + short_id;
+                            proxyStr += "&sid=" + urlEncode(short_id);
                         if(!spider_x.empty())
-                            proxyStr += "&spx=" + spider_x;
+                            proxyStr += "&spx=" + urlEncode(spider_x);
                         break;
                     case "ws"_hash:
                     case "h2"_hash:
                         if(!fake_type.empty())
-                            proxyStr += "&headerType=" + fake_type;
+                            proxyStr += "&headerType=" + urlEncode(fake_type);
                         if(!host.empty())
-                            proxyStr += "&host=" + host;
+                            proxyStr += "&host=" + urlEncode(host);
                         proxyStr += "&path=" + urlEncode(path.empty() ? "/" : path);
+                        if(transproto == "ws")
+                        {
+                            if(x.WsMaxEarlyData > 0)
+                                proxyStr += "&ed=" + std::to_string(x.WsMaxEarlyData);
+                            if(!x.WsEarlyDataHeaderName.empty())
+                                proxyStr += "&eh=" + urlEncode(x.WsEarlyDataHeaderName);
+                            if(!x.V2rayHttpUpgrade.is_undef())
+                                proxyStr += "&v2ray-http-upgrade=" + std::string(x.V2rayHttpUpgrade.get() ? "true" : "false");
+                            if(!x.V2rayHttpUpgradeFastOpen.is_undef())
+                                proxyStr += "&v2ray-http-upgrade-fast-open=" + std::string(x.V2rayHttpUpgradeFastOpen.get() ? "true" : "false");
+                        }
+                        break;
+                    case "xhttp"_hash:
+                        if(!fake_type.empty())
+                            proxyStr += "&headerType=" + urlEncode(fake_type);
+                        if(!host.empty())
+                            proxyStr += "&host=" + urlEncode(host);
+                        proxyStr += "&path=" + urlEncode(path.empty() ? "/" : path);
+                        if(!mode.empty())
+                            proxyStr += "&mode=" + urlEncode(mode);
                         break;
                     case "grpc"_hash:
-                        proxyStr += "&serviceName=" + path;
+                        proxyStr += "&serviceName=" + urlEncode(path);
+                        proxyStr += "&grpc-service-name=" + urlEncode(path);
                         if(!mode.empty())
-                            proxyStr += "&mode=" + mode;
+                            proxyStr += "&mode=" + urlEncode(mode);
                         if(!public_key.empty())
-                            proxyStr += "&pbk=" + public_key;
+                            proxyStr += "&pbk=" + urlEncode(public_key);
                         if(!short_id.empty())
-                            proxyStr += "&sid=" + short_id;
+                            proxyStr += "&sid=" + urlEncode(short_id);
                         if(!spider_x.empty())
-                            proxyStr += "&spx=" + spider_x;
+                            proxyStr += "&spx=" + urlEncode(spider_x);
                         break;
                     case "quic"_hash:
                         if(!fake_type.empty())
@@ -2985,7 +4937,7 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
             if(method == "auto")
                 method = "chacha20-ietf-poly1305";
             proxyStr = "vmess = " + hostname + ":" + port + ", method=" + method + ", password=" + id;
-            if(x.AlterId != 0)
+            if (x.AlterId != 0)
                 proxyStr += ", aead=false";
             if(tlssecure && !tls13.is_undef())
                 proxyStr += ", tls13=" + std::string(tls13 ? "true" : "false");
@@ -2997,8 +4949,32 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
                     proxyStr += ", obfs=ws";
                 proxyStr += ", obfs-host=" + host + ", obfs-uri=" + path;
             }
+            else if(transproto == "http")
+            {
+                proxyStr += ", obfs=http";
+                if(!host.empty())
+                    proxyStr += ", obfs-host=" + host;
+                if(!path.empty())
+                    proxyStr += ", obfs-uri=" + path;
+            }
             else if(tlssecure)
                 proxyStr += ", obfs=over-tls, obfs-host=" + host;
+            if(transproto == "ws" && !x.WsEarlyDataHeaderName.empty())
+                proxyStr += ", early-data-header-name=" + x.WsEarlyDataHeaderName;
+            if(transproto == "ws" && x.WsMaxEarlyData > 0)
+                proxyStr += ", max-early-data=" + std::to_string(x.WsMaxEarlyData);
+            if(tlssecure && !publickey.empty())
+            {
+                proxyStr += ", reality-base64-pubkey=" + publickey;
+                if(!shortid.empty())
+                    proxyStr += ", reality-hex-shortid=" + shortid;
+            }
+            if(tlssecure && !x.Fingerprint.empty())
+                proxyStr += ", tls-cert-sha256=" + x.Fingerprint;
+            if(tlssecure && !x.TLSPubkeySha256.empty())
+                proxyStr += ", tls-pubkey-sha256=" + x.TLSPubkeySha256;
+            if(tlssecure && !x.AlpnList.empty())
+                proxyStr += ", tls-alpn=" + alpnListToHex(x.AlpnList);
             break;
         case ProxyType::Shadowsocks:
             proxyStr = "shadowsocks = " + hostname + ":" + port + ", method=" + method + ", password=" + password;
@@ -3010,6 +4986,8 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
                     case "obfs-local"_hash:
                         if(!pluginopts.empty())
                             proxyStr += ", " + replaceAllDistinct(pluginopts, ";", ", ");
+                        if(pluginopts.find("over-tls") != std::string::npos)
+                            tlssecure = true;
                         break;
                     case "v2ray-plugin"_hash:
                         pluginopts = replaceAllDistinct(pluginopts, ";", "&");
@@ -3018,11 +4996,7 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
                         path = getUrlArg(pluginopts, "path");
                         tlssecure = pluginopts.find("tls") != std::string::npos;
                         if(tlssecure && plugin == "ws")
-                        {
                             plugin += 's';
-                            if(!tls13.is_undef())
-                                proxyStr += ", tls13=" + std::string(tls13 ? "true" : "false");
-                        }
                         proxyStr += ", obfs=" + plugin;
                         if(!host.empty())
                             proxyStr += ", obfs-host=" + host;
@@ -3031,6 +5005,23 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
                         break;
                     default: continue;
                 }
+            }
+            if(tlssecure)
+            {
+                if(!tls13.is_undef())
+                    proxyStr += ", tls13=" + std::string(tls13 ? "true" : "false");
+                if(!publickey.empty())
+                {
+                    proxyStr += ", reality-base64-pubkey=" + publickey;
+                    if(!shortid.empty())
+                        proxyStr += ", reality-hex-shortid=" + shortid;
+                }
+                if(!x.Fingerprint.empty())
+                    proxyStr += ", tls-cert-sha256=" + x.Fingerprint;
+                if(!x.TLSPubkeySha256.empty())
+                    proxyStr += ", tls-pubkey-sha256=" + x.TLSPubkeySha256;
+                if(!x.AlpnList.empty())
+                    proxyStr += ", tls-alpn=" + alpnListToHex(x.AlpnList);
             }
 
             break;
@@ -3048,8 +5039,24 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
             if(tlssecure)
             {
                 proxyStr += ", over-tls=true";
+                if(!sni.empty())
+                    proxyStr += ", tls-host=" + sni;
+                else if(!host.empty())
+                    proxyStr += ", tls-host=" + host;
+                if(!publickey.empty())
+                {
+                    proxyStr += ", reality-base64-pubkey=" + publickey;
+                    if(!shortid.empty())
+                        proxyStr += ", reality-hex-shortid=" + shortid;
+                }
                 if(!tls13.is_undef())
                     proxyStr += ", tls13=" + std::string(tls13 ? "true" : "false");
+                if(!x.Fingerprint.empty())
+                    proxyStr += ", tls-cert-sha256=" + x.Fingerprint;
+                if(!x.TLSPubkeySha256.empty())
+                    proxyStr += ", tls-pubkey-sha256=" + x.TLSPubkeySha256;
+                if(!x.AlpnList.empty())
+                    proxyStr += ", tls-alpn=" + alpnListToHex(x.AlpnList);
             }
             else
             {
@@ -3061,11 +5068,39 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
             if(tlssecure)
             {
                 if(transproto == "ws")
+                {
                     proxyStr += ", obfs=wss, obfs-host=" + host + ", obfs-uri=" + path;
+                    if(!publickey.empty())
+                    {
+                        proxyStr += ", reality-base64-pubkey=" + publickey;
+                        if(!shortid.empty())
+                            proxyStr += ", reality-hex-shortid=" + shortid;
+                    }
+                }
                 else
-                    proxyStr += ", over-tls=true, tls-host=" + host;
+                {
+                    proxyStr += ", over-tls=true";
+                    if(!sni.empty())
+                        proxyStr += ", tls-host=" + sni;
+                    else if(!x.ServerName.empty())
+                        proxyStr += ", tls-host=" + x.ServerName;
+                    else if(!host.empty())
+                        proxyStr += ", tls-host=" + host;
+                    if(!publickey.empty())
+                    {
+                        proxyStr += ", reality-base64-pubkey=" + publickey;
+                        if(!shortid.empty())
+                            proxyStr += ", reality-hex-shortid=" + shortid;
+                    }
+                }
                 if(!tls13.is_undef())
                     proxyStr += ", tls13=" + std::string(tls13 ? "true" : "false");
+                if(!x.Fingerprint.empty())
+                    proxyStr += ", tls-cert-sha256=" + x.Fingerprint;
+                if(!x.TLSPubkeySha256.empty())
+                    proxyStr += ", tls-pubkey-sha256=" + x.TLSPubkeySha256;
+                if(!x.AlpnList.empty())
+                    proxyStr += ", tls-alpn=" + alpnListToHex(x.AlpnList);
             }
             else
             {
@@ -3075,18 +5110,32 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
         case ProxyType::SOCKS5:
             proxyStr = "socks5 = " + hostname + ":" + port;
             if(!username.empty() && !password.empty())
-            {
                 proxyStr += ", username=" + username + ", password=" + password;
-                if(tlssecure)
+            if(tlssecure)
+            {
+                proxyStr += ", over-tls=true";
+                if(!sni.empty())
+                    proxyStr += ", tls-host=" + sni;
+                else if(!host.empty())
+                    proxyStr += ", tls-host=" + host;
+                if(!publickey.empty())
                 {
-                    proxyStr += ", over-tls=true, tls-host=" + host;
-                    if(!tls13.is_undef())
-                        proxyStr += ", tls13=" + std::string(tls13 ? "true" : "false");
+                    proxyStr += ", reality-base64-pubkey=" + publickey;
+                    if(!shortid.empty())
+                        proxyStr += ", reality-hex-shortid=" + shortid;
                 }
-                else
-                {
-                    proxyStr += ", over-tls=false";
-                }
+                if(!tls13.is_undef())
+                    proxyStr += ", tls13=" + std::string(tls13 ? "true" : "false");
+                if(!x.Fingerprint.empty())
+                    proxyStr += ", tls-cert-sha256=" + x.Fingerprint;
+                if(!x.TLSPubkeySha256.empty())
+                    proxyStr += ", tls-pubkey-sha256=" + x.TLSPubkeySha256;
+                if(!x.AlpnList.empty())
+                    proxyStr += ", tls-alpn=" + alpnListToHex(x.AlpnList);
+            }
+            else
+            {
+                proxyStr += ", over-tls=false";
             }
             break;
         case ProxyType::VLESS:
@@ -3123,18 +5172,21 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
             }
             else if(transproto == "tcp")
             {
-                if(tlssecure){
+                if(tlssecure)
+                {
                     proxyStr += ", obfs=over-tls";
-                    if(!publickey.empty() && sni.empty())
-                    if(!shortid.empty() && publickey.empty())
-                    if(!publickey.empty() && !sni.empty()){
+                    if(!sni.empty())
                         proxyStr += ", obfs-host=" + sni;
+                    else if(!host.empty())
+                        proxyStr += ", obfs-host=" + host;
+                    if(!publickey.empty())
+                    {
                         proxyStr += ", reality-base64-pubkey=" + publickey;
                         if(!shortid.empty())
                             proxyStr += ", reality-hex-shortid=" + shortid;
-                        if(!flow.empty())
-                            proxyStr += ", vless-flow=" + flow;
                     }
+                    if(!flow.empty())
+                        proxyStr += ", vless-flow=" + flow;
                 }
             }
             else if(tlssecure)
@@ -3143,17 +5195,57 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
                 if(!sni.empty())
                     proxyStr += ", obfs-host=" + sni;
             }
+            if(x.AlterId != 0)
+                proxyStr += ", aead=false";
+            if(tlssecure && !x.Fingerprint.empty())
+                proxyStr += ", tls-cert-sha256=" + x.Fingerprint;
+            if(tlssecure && !x.TLSPubkeySha256.empty())
+                proxyStr += ", tls-pubkey-sha256=" + x.TLSPubkeySha256;
+            if(tlssecure && !x.AlpnList.empty())
+                proxyStr += ", tls-alpn=" + alpnListToHex(x.AlpnList);
             break;
-        case ProxyType::Hysteria2:
-            proxyStr = "hysteria2 = " + hostname + ":" + port + ", password=" + password;
-            if(!x.Up.empty())
-                proxyStr += ", up=" + x.Up;
-            if(!x.Down.empty())
-                proxyStr += ", down=" + x.Down;
-            if(!x.OBFS.empty())
-                proxyStr += ", obfs=" + x.OBFS;
-            if(!x.OBFSParam.empty())
-                proxyStr += ", obfs-password=" + x.OBFSParam;
+//        case ProxyType::Hysteria2:
+//            proxyStr = "hysteria2 = " + hostname + ":" + port + ", password=" + password;
+//            if(!x.Up.empty())
+//                proxyStr += ", up=" + x.Up;
+//            if(!x.Down.empty())
+//                proxyStr += ", down=" + x.Down;
+//            if(!x.OBFS.empty())
+//                proxyStr += ", obfs=" + x.OBFS;
+//            if(!x.OBFSParam.empty())
+//                proxyStr += ", obfs-password=" + x.OBFSParam;
+//            if(!x.SNI.empty())
+//                proxyStr += ", sni=" + x.SNI;
+//            else if(!host.empty())
+//                proxyStr += ", sni=" + host;
+//            if(!x.Fingerprint.empty())
+//                proxyStr += ", tls-cert-sha256=" + x.Fingerprint;
+//            if(!x.Ports.empty())
+//                proxyStr += ", port-hopping=\"" + x.Ports + "\"";
+//            if(x.HopInterval > 0)
+//                proxyStr += ", port-hopping-interval=" + std::to_string(x.HopInterval);
+//            break;
+        case ProxyType::AnyTLS:
+            proxyStr = "anytls = " + hostname + ":" + port + ", password=" + password;
+            proxyStr += ", over-tls=true";
+            if (!x.SNI.empty())
+                proxyStr += ", tls-host=" + x.SNI;
+            else if(!host.empty())
+                proxyStr += ", tls-host=" + host;
+            if(!publickey.empty())
+            {
+                proxyStr += ", reality-base64-pubkey=" + publickey;
+                if(!shortid.empty())
+                    proxyStr += ", reality-hex-shortid=" + shortid;
+            }
+            if(!x.Reuse.is_undef())
+                proxyStr += ", reuse=" + x.Reuse.get_str();
+            if(!x.Fingerprint.empty())
+                proxyStr += ", tls-cert-sha256=" + x.Fingerprint;
+            if(!x.TLSPubkeySha256.empty())
+                proxyStr += ", tls-pubkey-sha256=" + x.TLSPubkeySha256;
+            if(!x.AlpnList.empty())
+                proxyStr += ", tls-alpn=" + alpnListToHex(x.AlpnList);
             break;
         default:
             continue;
@@ -3162,7 +5254,7 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
             proxyStr += ", fast-open=" + tfo.get_str();
         if(!udp.is_undef())
             proxyStr += ", udp-relay=" + udp.get_str();
-        if(tlssecure && !scv.is_undef() && (x.Type != ProxyType::Shadowsocks && x.Type != ProxyType::ShadowsocksR))
+        if(tlssecure && !scv.is_undef() && x.Type != ProxyType::ShadowsocksR)
             proxyStr += ", tls-verification=" + scv.reverse().get_str();
         proxyStr += ", tag=" + x.Remark;
 
@@ -3554,8 +5646,15 @@ std::string proxyToLoon(std::vector<Proxy> &nodes, const std::string &base_conf,
             proxy = "Shadowsocks," + hostname + "," + port + "," + method + ",\"" + password + "\"";
             if(plugin == "simple-obfs" || plugin == "obfs-local")
             {
-                if(!pluginopts.empty())
-                    proxy += "," + replaceAllDistinct(replaceAllDistinct(pluginopts, ";obfs-host=", ","), "obfs=", "");
+                const std::string obfs_name = getUrlArg(pluginopts, "obfs");
+                const std::string obfs_host = getUrlArg(pluginopts, "obfs-host");
+                const std::string obfs_uri = getUrlArg(pluginopts, "obfs-uri");
+                if(!obfs_name.empty())
+                    proxy += ",obfs-name=" + obfs_name;
+                if(!obfs_host.empty())
+                    proxy += ",obfs-host=" + obfs_host;
+                if(!obfs_uri.empty())
+                    proxy += ",obfs-uri=" + obfs_uri;
             }
             else if(!plugin.empty())
                 continue;
@@ -3577,24 +5676,49 @@ std::string proxyToLoon(std::vector<Proxy> &nodes, const std::string &base_conf,
             case "ws"_hash:
                 proxy += ",transport=ws,path=" + path + ",host=" + host;
                 break;
+            case "http"_hash:
+                proxy += ",transport=http,path=" + path + ",host=" + host;
+                break;
             default:
                 continue;
             }
             if(!scv.is_undef())
                 proxy += ",skip-cert-verify=" + std::string(scv.get() ? "true" : "false");
+            if(!x.AlpnList.empty())
+                proxy += ",alpn=" + join(x.AlpnList, ",");
+            if(!x.Fingerprint.empty() && tlssecure)
+                proxy += ",tls-cert-sha256=" + x.Fingerprint;
+            if(!x.TLSPubkeySha256.empty() && tlssecure)
+                proxy += ",tls-pubkey-sha256=" + x.TLSPubkeySha256;
+            if(tlssecure && !x.TLS13.is_undef())
+                proxy += ",tls13=" + std::string(x.TLS13.get() ? "true" : "false");
+            if(!x.UnderlyingProxy.empty())
+                proxy += ",underlying-proxy=" + x.UnderlyingProxy;
             break;
         case ProxyType::ShadowsocksR:
             proxy = "ShadowsocksR," + hostname + "," + port + "," + method + ",\"" + password + "\",protocol=" + protocol + ",protocol-param=" + protoparam + ",obfs=" + obfs + ",obfs-param=" + obfsparam;
+            if(!udp.is_undef())
+                proxy += ",udp=" + std::string(udp.get() ? "true" : "false");
             break;
         case ProxyType::HTTP:
-            proxy = "http," + hostname + "," + port + "," + username + ",\"" + password + "\"";
+            proxy = "http," + hostname + "," + port;
+            if(!username.empty() && !password.empty())
+                proxy += "," + username + ",\"" + password + "\"";
             break;
         case ProxyType::HTTPS:
-            proxy = "https," + hostname + "," + port + "," + username + ",\"" + password + "\"";
-            if(!host.empty())
+            proxy = "https," + hostname + "," + port;
+            if(!username.empty() && !password.empty())
+                proxy += "," + username + ",\"" + password + "\"";
+            if(!sni.empty())
+                proxy += ",tls-name=" + sni;
+            else if(!host.empty())
                 proxy += ",tls-name=" + host;
             if(!scv.is_undef())
                 proxy += ",skip-cert-verify=" + std::string(scv.get() ? "true" : "false");
+            if(!x.Fingerprint.empty())
+                proxy += ",tls-cert-sha256=" + x.Fingerprint;
+            if(!x.TLSPubkeySha256.empty())
+                proxy += ",tls-pubkey-sha256=" + x.TLSPubkeySha256;
             break;
         case ProxyType::Trojan:
             proxy = "trojan," + hostname + "," + port + ",\"" + password + "\"";
@@ -3607,11 +5731,20 @@ std::string proxyToLoon(std::vector<Proxy> &nodes, const std::string &base_conf,
                 case "ws"_hash:
                     proxy += ",transport=ws,path=" + path + ",host=" + host;
                     break;
+                case "http"_hash:
+                    proxy += ",transport=http,path=" + path + ",host=" + host;
+                    break;
                 default:
                     continue;
             }
             if(!scv.is_undef())
                 proxy += ",skip-cert-verify=" + std::string(scv.get() ? "true" : "false");
+            if(!x.AlpnList.empty())
+                proxy += ",alpn=" + join(x.AlpnList, ",");
+            if(!x.Fingerprint.empty())
+                proxy += ",tls-cert-sha256=" + x.Fingerprint;
+            if(!x.TLSPubkeySha256.empty())
+                proxy += ",tls-pubkey-sha256=" + x.TLSPubkeySha256;
             break;
         case ProxyType::SOCKS5:
             proxy = "socks5," + hostname + "," + port;
@@ -3620,10 +5753,16 @@ std::string proxyToLoon(std::vector<Proxy> &nodes, const std::string &base_conf,
             proxy += ",over-tls=" + std::string(tlssecure ? "true" : "false");
             if (tlssecure)
             {
-                if(!host.empty())
+                if(!sni.empty())
+                    proxy += ",tls-name=" + sni;
+                else if(!host.empty())
                     proxy += ",tls-name=" + host;
                 if(!scv.is_undef())
                     proxy += ",skip-cert-verify=" + std::string(scv.get() ? "true" : "false");
+                if(!x.Fingerprint.empty())
+                    proxy += ",tls-cert-sha256=" + x.Fingerprint;
+                if(!x.TLSPubkeySha256.empty())
+                    proxy += ",tls-pubkey-sha256=" + x.TLSPubkeySha256;
             }
             break;
         case ProxyType::WireGuard:
@@ -3642,6 +5781,8 @@ std::string proxyToLoon(std::vector<Proxy> &nodes, const std::string &base_conf,
                 proxy += ", mtu=" + std::to_string(x.Mtu);
             if(x.KeepAlive > 0)
                 proxy += ", keepalive=" + std::to_string(x.KeepAlive);
+            if(!udp.is_undef())
+                proxy += ", udp=" + std::string(udp.get() ? "true" : "false");
             proxy += ", peers=[{" + generatePeer(x, true) + "}]";
             break;
         case ProxyType::Hysteria2:
@@ -3650,41 +5791,166 @@ std::string proxyToLoon(std::vector<Proxy> &nodes, const std::string &base_conf,
                 proxy += ",skip-cert-verify=" + std::string(scv.get() ? "true" : "false");
             if(!x.Fingerprint.empty())
                 proxy += ",tls-cert-sha256=" + x.Fingerprint;
+            if(!x.TLSPubkeySha256.empty())
+                proxy += ",tls-pubkey-sha256=" + x.TLSPubkeySha256;
             if(!x.SNI.empty())
                 proxy += ",tls-name=" + x.SNI;
+            else if(!sni.empty())
+                proxy += ",tls-name=" + sni;
+            if(toLower(x.OBFS) == "salamander" && !x.OBFSParam.empty())
+                proxy += ",salamander-password=" + x.OBFSParam;
+            if(!x.GeckoPassword.empty())
+                proxy += ",gecko-password=" + x.GeckoPassword;
+            if(!x.Ports.empty())
+                proxy += ",ports=" + x.Ports;
+            if(!x.Up.empty())
+                proxy += ",upload-bandwidth=" + x.Up;
+            else if(x.UpSpeed > 0)
+                proxy += ",upload-bandwidth=" + std::to_string(x.UpSpeed);
+            if(!x.Down.empty())
+                proxy += ",download-bandwidth=" + x.Down;
+            else if(x.DownSpeed > 0)
+                proxy += ",download-bandwidth=" + std::to_string(x.DownSpeed);
             break;
         case ProxyType::VLESS:
-            if(flow != "xtls-rprx-vision")
+            if(flow == "xtls-rprx-vision")
             {
-                if(transproto == "ws")
-                    proxy = "VLESS," + hostname + "," + port + ",\"" + id + "\"" + ",path=" + path + ",host=" + host + ",transport=" + transproto + ",udp=" + (udp.get() ? "true" : "false") + ",over-tls=" + ( tlssecure ? "true" : "false") + ",sni=" + sni;
-                else
-                    continue;
+                proxy = "VLESS," + hostname + "," + port + ",\"" + id + "\",flow=" + flow + ",public-key=\"" + pk + "\",short-id=" + shortId;
+                proxy += ",udp=" + std::string(udp.get() ? "true" : "false");
+                proxy += ",over-tls=" + std::string(tlssecure ? "true" : "false");
+                if(!sni.empty())
+                    proxy += ",sni=" + sni;
+                if(!scv.is_undef())
+                    proxy += ",skip-cert-verify=" + std::string(scv.get() ? "true" : "false");
+                if(!x.Fingerprint.empty() && tlssecure)
+                    proxy += ",tls-cert-sha256=" + x.Fingerprint;
+                if(!x.TLSPubkeySha256.empty() && tlssecure)
+                    proxy += ",tls-pubkey-sha256=" + x.TLSPubkeySha256;
+                if(tlssecure && !x.TLS13.is_undef())
+                    proxy += ",tls13=" + std::string(x.TLS13.get() ? "true" : "false");
             }
             else
-                proxy = "VLESS," + hostname + "," + port + ",\"" + id + "\",flow=" + flow + ",public-key=\"" + pk + "\",short-id=" + shortId + ",udp=" + (udp.get() ? "true" : "false") + ",over-tls=" + ( tlssecure ? "true" : "false") + ",sni=" + sni;
-            switch(hash_(transproto))
             {
-                case "tcp"_hash:
-                    proxy += ",transport=tcp";
-                    break;
-                default:
-                if(transproto != "ws")
-                    continue;
-                else
-                    break;;
+                proxy = "VLESS," + hostname + "," + port + ",\"" + id + "\"";
+                switch(hash_(transproto))
+                {
+                    case "tcp"_hash:
+                        proxy += ",transport=tcp";
+                        if(tlssecure)
+                        {
+                            proxy += ",over-tls=true";
+                            if(!sni.empty())
+                                proxy += ",tls-name=" + sni;
+                        }
+                        break;
+                    case "ws"_hash:
+                        proxy += ",transport=ws,path=" + (path.empty() ? "/" : path) + ",host=" + host;
+                        if(tlssecure)
+                        {
+                            proxy += ",over-tls=true";
+                            if(!sni.empty())
+                                proxy += ",tls-name=" + sni;
+                        }
+                        break;
+                    case "http"_hash:
+                        proxy += ",transport=http,path=" + (path.empty() ? "/" : path) + ",host=" + host;
+                        if(tlssecure)
+                        {
+                            proxy += ",over-tls=true";
+                            if(!sni.empty())
+                                proxy += ",tls-name=" + sni;
+                        }
+                        break;
+                    default:
+                        continue;
+                }
+                proxy += ",udp=" + std::string(udp.get() ? "true" : "false");
+                if(!scv.is_undef())
+                    proxy += ",skip-cert-verify=" + std::string(scv.get() ? "true" : "false");
+                if(!x.AlpnList.empty())
+                    proxy += ",alpn=" + join(x.AlpnList, ",");
+                if(!x.Fingerprint.empty() && tlssecure)
+                    proxy += ",tls-cert-sha256=" + x.Fingerprint;
+                if(!x.TLSPubkeySha256.empty() && tlssecure)
+                    proxy += ",tls-pubkey-sha256=" + x.TLSPubkeySha256;
+                if(tlssecure && !x.TLS13.is_undef())
+                    proxy += ",tls13=" + std::string(x.TLS13.get() ? "true" : "false");
             }
-            if(!scv.is_undef())
+            break;
+        case ProxyType::AnyTLS:
+            proxy = "anytls," + hostname + "," + port + ",\"" + password + "\"";
+            if (!x.SNI.empty())
+                proxy += ",sni=" + x.SNI;
+            if (!x.AlpnList.empty())
+                proxy += ",alpn=" + join(x.AlpnList, ",");
+            if (!scv.is_undef())
                 proxy += ",skip-cert-verify=" + std::string(scv.get() ? "true" : "false");
+            if(!x.Fingerprint.empty())
+                proxy += ",tls-cert-sha256=" + x.Fingerprint;
+            if(!x.TLSPubkeySha256.empty())
+                proxy += ",tls-pubkey-sha256=" + x.TLSPubkeySha256;
+            if(!x.AnyTLSBlockQUIC.is_undef())
+                proxy += ",block-quic=" + std::string(x.AnyTLSBlockQUIC.get() ? "true" : "false");
             break;
         default:
             continue;
         }
 
-        if(ext.tfo)
-            proxy += ",fast-open=true";
-        if(ext.udp)
-            proxy += ",udp=true";
+        const auto supports_fast_open = [](ProxyType t)
+        {
+            switch(t)
+            {
+            case ProxyType::Shadowsocks:
+            case ProxyType::ShadowsocksR:
+            case ProxyType::VMess:
+            case ProxyType::VLESS:
+            case ProxyType::Trojan:
+            case ProxyType::HTTP:
+            case ProxyType::HTTPS:
+            case ProxyType::SOCKS5:
+            case ProxyType::Hysteria2:
+            case ProxyType::AnyTLS:
+                return true;
+            default:
+                return false;
+            }
+        };
+
+        const auto supports_udp = [](ProxyType t)
+        {
+            switch(t)
+            {
+            case ProxyType::Shadowsocks:
+            case ProxyType::ShadowsocksR:
+            case ProxyType::VMess:
+            case ProxyType::VLESS:
+            case ProxyType::Trojan:
+            case ProxyType::SOCKS5:
+            case ProxyType::Hysteria2:
+            case ProxyType::AnyTLS:
+                return true;
+            default:
+                return false;
+            }
+        };
+
+        tribool node_tfo = x.TCPFastOpen;
+        if(node_tfo.is_undef())
+            node_tfo = ext.tfo;
+        if(supports_fast_open(x.Type) && !node_tfo.is_undef())
+            proxy += ",fast-open=" + std::string(node_tfo.get() ? "true" : "false");
+
+        tribool node_udp = x.UDP;
+        if(node_udp.is_undef())
+            node_udp = ext.udp;
+        if(supports_udp(x.Type) && proxy.find(",udp=") == std::string::npos && !node_udp.is_undef())
+            proxy += ",udp=" + std::string(node_udp.get() ? "true" : "false");
+
+        if(x.Type != ProxyType::Hysteria2)
+        {
+            // keep this block for historical output order compatibility
+        }
+
 
         if(ext.nodelist)
             output_nodelist += x.Remark + " = " + proxy + "\n";
@@ -3914,7 +6180,7 @@ void proxyToSingBox(std::vector<Proxy> &nodes, rapidjson::Document &json, std::v
     for (Proxy &x : nodes)
     {
         std::string type = getProxyTypeName(x.Type);
-        if(ext.append_proxy_type)
+        if (ext.append_proxy_type)
             x.Remark = "[" + type + "] " + x.Remark;
 
         processRemark(x.Remark, remarks_list, false);
@@ -3986,12 +6252,10 @@ void proxyToSingBox(std::vector<Proxy> &nodes, rapidjson::Document &json, std::v
                 proxy.AddMember("type", "wireguard", allocator);
                 proxy.AddMember("tag", rapidjson::StringRef(x.Remark.c_str()), allocator);
                 rapidjson::Value addresses(rapidjson::kArrayType);
-                if(!x.SelfIP.empty())
-                    addresses.PushBack(rapidjson::StringRef(x.SelfIP.c_str()), allocator);
-                if(!x.SelfIPv6.empty())
+                addresses.PushBack(rapidjson::StringRef(x.SelfIP.c_str()), allocator);
+                if (!x.SelfIPv6.empty())
                     addresses.PushBack(rapidjson::StringRef(x.SelfIPv6.c_str()), allocator);
-                if(!addresses.Empty())
-                    proxy.AddMember("local_address", addresses, allocator);
+                proxy.AddMember("local_address", addresses, allocator);
                 proxy.AddMember("private_key", rapidjson::StringRef(x.PrivateKey.c_str()), allocator);
 
                 rapidjson::Value peer(rapidjson::kObjectType);
@@ -4012,11 +6276,11 @@ void proxyToSingBox(std::vector<Proxy> &nodes, rapidjson::Document &json, std::v
                     auto reserved = stringArrayToJsonArray(x.ClientId, ",", allocator);
                     peer.AddMember("reserved", reserved, allocator);
                 }
+
                 rapidjson::Value peers(rapidjson::kArrayType);
                 peers.PushBack(peer, allocator);
                 proxy.AddMember("peers", peers, allocator);
-                if(x.Mtu)
-                    proxy.AddMember("mtu", x.Mtu, allocator);
+                proxy.AddMember("mtu", x.Mtu, allocator);
                 break;
             }
             case ProxyType::Hysteria:
@@ -4030,7 +6294,6 @@ void proxyToSingBox(std::vector<Proxy> &nodes, rapidjson::Document &json, std::v
                 {
                     proxy.AddMember("obfs", rapidjson::StringRef(x.OBFS.c_str()), allocator);
                 }
-                
                 if (!x.AuthStr.empty())
                 {
                     proxy.AddMember("auth_str", rapidjson::StringRef(x.AuthStr.c_str()), allocator);
@@ -4044,26 +6307,6 @@ void proxyToSingBox(std::vector<Proxy> &nodes, rapidjson::Document &json, std::v
                     proxy.AddMember("recv_window", x.RecvWindow, allocator);
                 if (!x.DisableMtuDiscovery.is_undef())
                     proxy.AddMember("disable_mtu_discovery", x.DisableMtuDiscovery.get(), allocator);
-                
-                rapidjson::Value tls(rapidjson::kObjectType);
-                tls.AddMember("enabled", true, allocator);
-                if (!scv.is_undef())
-                    tls.AddMember("insecure", scv.get(), allocator);
-                if (!x.Alpn.empty())
-                {
-                    rapidjson::Value alpn(rapidjson::kArrayType);
-                    alpn.PushBack(rapidjson::StringRef(x.Alpn.c_str()), allocator);
-                    tls.AddMember("alpn", alpn, allocator);
-                }
-                if (!x.Ca.empty())
-                {
-                    rapidjson::Value ca_str;
-                    ca_str.SetString(x.Ca.c_str(), allocator);
-                    tls.AddMember("certificate", ca_str, allocator);
-                }
-                if (!x.CaStr.empty())
-                    tls.AddMember("certificate", rapidjson::StringRef(x.CaStr.c_str()), allocator);
-                proxy.AddMember("tls", tls, allocator);
                 break;
             }
             case ProxyType::Hysteria2:
@@ -4079,7 +6322,7 @@ void proxyToSingBox(std::vector<Proxy> &nodes, rapidjson::Document &json, std::v
                 {
                     rapidjson::Value obfs(rapidjson::kObjectType);
                     obfs.AddMember("type", rapidjson::StringRef(x.OBFS.c_str()), allocator);
-                    if(!x.OBFSParam.empty())
+                    if (!x.OBFSParam.empty())
                         obfs.AddMember("password", rapidjson::StringRef(x.OBFSParam.c_str()), allocator);
                     proxy.AddMember("obfs", obfs, allocator);
                 }
@@ -4087,25 +6330,6 @@ void proxyToSingBox(std::vector<Proxy> &nodes, rapidjson::Document &json, std::v
                     proxy.AddMember("password", rapidjson::StringRef(x.Password.c_str()), allocator);
                 if (x.HopInterval)
                     proxy.AddMember("hop_interval", rapidjson::Value(formatSingBoxInterval(x.HopInterval).c_str(), allocator), allocator);
-                rapidjson::Value tls(rapidjson::kObjectType);
-                tls.AddMember("enabled", true, allocator);
-                if (!scv.is_undef())
-                    tls.AddMember("insecure", scv.get(), allocator);
-                if (!x.Alpn.empty())
-                {
-                    rapidjson::Value alpn(rapidjson::kArrayType);
-                    alpn.PushBack(rapidjson::StringRef(x.Alpn.c_str()), allocator);
-                    tls.AddMember("alpn", alpn, allocator);
-                }
-                if (!x.Ca.empty())
-                {
-                    rapidjson::Value ca_str(rapidjson::kStringType);
-                    ca_str.SetString(x.Ca.c_str(), allocator);
-                    tls.AddMember("certificate", ca_str, allocator);
-                }
-                if (!x.CaStr.empty())
-                    tls.AddMember("certificate", rapidjson::StringRef(x.CaStr.c_str()), allocator);
-                proxy.AddMember("tls", tls, allocator);
                 break;
             }
             case ProxyType::TUIC:
@@ -4117,68 +6341,6 @@ void proxyToSingBox(std::vector<Proxy> &nodes, rapidjson::Document &json, std::v
                     proxy.AddMember("password", rapidjson::StringRef(x.Password.c_str()), allocator);
                 if(!x.HeartbeatInterval.empty())
                     proxy.AddMember("heartbeat", rapidjson::StringRef(x.HeartbeatInterval.c_str()), allocator);
-                rapidjson::Value tls(rapidjson::kObjectType);
-                tls.AddMember("enabled", true, allocator);
-                if(!scv.is_undef())
-                    tls.AddMember("insecure", scv.get(), allocator);
-                if(!x.Alpn.empty())
-                {
-                    rapidjson::Value alpn(rapidjson::kArrayType);
-                    string_array alpnItems = split(x.Alpn, ",");
-                    if(alpnItems.empty()) alpnItems.push_back(x.Alpn);
-                    for(auto &s : alpnItems)
-                    {
-                        std::string trimmed = trim(s);
-                        if(!trimmed.empty())
-                            alpn.PushBack(rapidjson::StringRef(trimmed.c_str()), allocator);
-                    }
-                    if(!alpn.Empty())
-                        tls.AddMember("alpn", alpn, allocator);
-                }
-                if(!x.UdpRelayMode.empty())
-                    proxy.AddMember("udp_relay_mode", rapidjson::StringRef(x.UdpRelayMode.c_str()), allocator);
-                if(!x.CongestionController.empty())
-                    proxy.AddMember("congestion_controller", rapidjson::StringRef(x.CongestionController.c_str()), allocator);
-                if(!x.SNI.empty())
-                    proxy.AddMember("sni", rapidjson::StringRef(x.SNI.c_str()), allocator);
-                proxy.AddMember("tls", tls, allocator);
-                break;
-            }
-            case ProxyType::AnyTLS:
-            {
-                addSingBoxCommonMembers(proxy, x, "anytls", allocator);
-                if(!x.Password.empty())
-                    proxy.AddMember("password", rapidjson::StringRef(x.Password.c_str()), allocator);
-                if(!x.SNI.empty())
-                    proxy.AddMember("sni", rapidjson::StringRef(x.SNI.c_str()), allocator);
-                if(x.IdleSessionCheckInterval)
-                    proxy.AddMember("idle_session_check_interval", rapidjson::Value(formatSingBoxInterval(x.IdleSessionCheckInterval).c_str(), allocator), allocator);
-                if(x.IdleSessionTimeout)
-                    proxy.AddMember("idle_session_timeout", rapidjson::Value(formatSingBoxInterval(x.IdleSessionTimeout).c_str(), allocator), allocator);
-                if(x.MinIdleSession)
-                    proxy.AddMember("min_idle_session", rapidjson::Value(formatSingBoxInterval(x.MinIdleSession).c_str(), allocator), allocator);
-                rapidjson::Value tls(rapidjson::kObjectType);
-                tls.AddMember("enabled", true, allocator);
-                if(!scv.is_undef())
-                    tls.AddMember("insecure", scv.get(), allocator);
-                if(!x.Fingerprint.empty())
-                {
-                    rapidjson::Value utls(rapidjson::kObjectType);
-                    utls.AddMember("enabled", true, allocator);
-                    utls.AddMember("fingerprint", rapidjson::StringRef(x.Fingerprint.c_str()), allocator);
-                    tls.AddMember("utls", utls, allocator);
-                }
-                if(!x.Alpn.empty())
-                {
-                    rapidjson::Value alpn(rapidjson::kArrayType);
-                    for(const auto& item : x.Alpn)
-                    {
-                        std::string alpn_item(1, item);
-                        alpn.PushBack(rapidjson::StringRef(alpn_item.c_str()), allocator);
-                    }
-                    tls.AddMember("alpn", alpn, allocator);
-                }
-                proxy.AddMember("tls", tls, allocator);
                 break;
             }
             case ProxyType::VLESS:
@@ -4289,6 +6451,17 @@ void proxyToSingBox(std::vector<Proxy> &nodes, rapidjson::Document &json, std::v
                 proxy.AddMember("password", rapidjson::StringRef(x.Password.c_str()), allocator);
                 break;
             }
+            case ProxyType::AnyTLS:
+            {
+                addSingBoxCommonMembers(proxy, x, "anytls", allocator);
+                rapidjson::Value users(rapidjson::kArrayType);
+                rapidjson::Value user(rapidjson::kObjectType);
+                user.AddMember("username", "sekai", allocator);
+                user.AddMember("password", rapidjson::StringRef(x.Password.c_str()), allocator);
+                users.PushBack(user, allocator);
+                proxy.AddMember("users", users, allocator);
+                break;
+            }
             default:
                 continue;
         }
@@ -4298,6 +6471,11 @@ void proxyToSingBox(std::vector<Proxy> &nodes, rapidjson::Document &json, std::v
             tls.AddMember("enabled", true, allocator);
             if (!x.ServerName.empty())
                 tls.AddMember("server_name", rapidjson::StringRef(x.ServerName.c_str()), allocator);
+            else if (!x.Host.empty())
+                tls.AddMember("server_name", rapidjson::StringRef(x.Host.c_str()), allocator);
+            else if (!x.SNI.empty())
+                tls.AddMember("server_name", rapidjson::StringRef(x.SNI.c_str()), allocator);
+            tls.AddMember("insecure", buildBooleanValue(scv), allocator);
             if (!x.AlpnList.empty())
             {
                 auto alpns = vectorToJsonArray(x.AlpnList, allocator);
@@ -4305,11 +6483,21 @@ void proxyToSingBox(std::vector<Proxy> &nodes, rapidjson::Document &json, std::v
             }
             else if(!x.Alpn.empty())
             {
-                auto alpns = stringArrayToJsonArray(x.Alpn, ",", allocator);
-                tls.AddMember("alpn", alpns, allocator);
+                rapidjson::Value alpn = stringArrayToJsonArray(x.Alpn, ",", allocator);
+                tls.AddMember("alpn", alpn, allocator);
             }
-            tls.AddMember("insecure", buildBooleanValue(scv), allocator);
+            if (!x.Ca.empty())
+            {
+                rapidjson::Value ca_str(rapidjson::kStringType);
+                ca_str.SetString(x.Ca.c_str(), allocator);
+                tls.AddMember("certificate", ca_str, allocator);
+            }
+            if (!x.CaStr.empty())
+                tls.AddMember("certificate", rapidjson::StringRef(x.CaStr.c_str()), allocator);
             proxy.AddMember("tls", tls, allocator);
+        }
+        if (!x.UnderlyingProxy.empty()) {
+            proxy.AddMember("detour", rapidjson::Value(x.UnderlyingProxy.c_str(), allocator), allocator);
         }
         if (!udp.is_undef() && !udp)
         {

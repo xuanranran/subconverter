@@ -8,6 +8,9 @@ on:
     #   - '!CHANGELOG.md'
     #   - '!sub-web/**'
   workflow_dispatch:
+permissions:
+  contents: read
+  packages: write
 concurrency:
   group: ${{ github.ref }}-${{ github.workflow }}
   cancel-in-progress: true
@@ -85,16 +88,32 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           platforms: ${{ matrix.platform }}
-          context: scripts/
+          context: .
+          file: scripts/Dockerfile
           push: true
-          tags: |
-            ${{ steps.meta.outputs.tags }}
+          outputs: type=image,"name=${{ env.DOCKERHUB_REPO }},${{ env.GHCR_REPO }}",push-by-digest=true,name-canonical=true,push=true
           #            ${{ env.DOCKERHUB_REPO }}:latest
           #            ghcr.io/xuanranran/subconverter:latest
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
+            THREADS=2
             SHA=${{ steps.set-ver.outputs.sha_short }}
             VERSION=${{ steps.set-ver.outputs.set-ver }}
+      - name: Smoke test amd64 converter
+        if: matrix.platform == 'linux/amd64'
+        run: |
+          docker run -d --name subconverter-smoke -p 127.0.0.1:12550:25500 "${{ env.DOCKERHUB_REPO }}@${{ steps.build.outputs.digest }}"
+          trap 'docker logs subconverter-smoke; docker rm -f subconverter-smoke' EXIT
+          ready=false
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:12550/version >/dev/null; then
+              ready=true
+              break
+            fi
+            sleep 1
+          done
+          test "$ready" = true
+          python3 scripts/smoke_conversion.py http://127.0.0.1:12550
       #          outputs: type=image,"name=${{ env.DOCKERHUB_REPO }},${{ env.GHCR_REPO }}",push-by-digest=true,name-canonical=true,push=true
       #      - name: Generate artifact attestation
       #        uses: actions/attest-build-provenance@v2

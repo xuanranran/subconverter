@@ -8,16 +8,16 @@ window.config = {
       text: 'localhost 本地版 局域网请修改',
     },
     {
-      value: 'https://api.miaoco.me',
-      text: 'LovinYarn 后端（新 api.miaoco.me）',
+      value: 'https://api.miaoceo.com',
+      text: 'LovinYarn 后端（新 api.miaoceo.com）',
     },
     {
-      value: 'https://sub.miaoco.me',
-      text: 'LovinYarn 后端（旧 sub.miaoco.me）',
+      value: 'https://sub.miaoceo.com',
+      text: 'LovinYarn 后端（旧 sub.miaoceo.com）',
     }
   ],
   // 短域名服务地址
-  shortUrl: 'https://i.miaoco.me',
+  shortUrl: 'https://i.miaoceo.com',
   // 首页菜单
   menuItem: [
     {

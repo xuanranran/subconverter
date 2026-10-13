@@ -9,6 +9,7 @@
 #include "parser/infoparser.h"
 #include "parser/subparser.h"
 #include "script/script_quickjs.h"
+#include "utils/age_decrypt.h"
 #include "utils/file_extra.h"
 #include "utils/logger.h"
 #include "utils/map_extra.h"
@@ -162,6 +163,16 @@ int addNodes(std::string link, std::vector<Proxy> &allNodes, int groupID, parse_
                 writeLog(LOG_TYPE_WARN, "No system proxy is set. Skipping.");
         }
         */
+        // Try age decryption if age-secret-key is provided
+        if(!strSub.empty() && parse_set.age_secret_key && !parse_set.age_secret_key->empty())
+        {
+            std::string ageError;
+            std::string decrypted = ageDecrypt(strSub, *parse_set.age_secret_key, &ageError);
+            if(!decrypted.empty())
+                strSub = decrypted;
+            else if(!ageError.empty())
+                writeLog(0, "age decrypt: " + ageError, LOG_LEVEL_WARNING);
+        }
         if(!strSub.empty())
         {
             writeLog(LOG_TYPE_INFO, "Parsing subscription data...");
@@ -237,22 +248,21 @@ int addNodes(std::string link, std::vector<Proxy> &allNodes, int groupID, parse_
 
 bool chkIgnore(const Proxy &node, string_array &exclude_remarks, string_array &include_remarks)
 {
-    bool excluded = false, included = false;
+    bool included;
     //std::string remarks = UTF8ToACP(node.remarks);
     //std::string remarks = node.remarks;
     //writeLog(LOG_TYPE_INFO, "Comparing exclude remarks...");
-    excluded = std::any_of(exclude_remarks.cbegin(), exclude_remarks.cend(), [&node](const auto &x)
+    bool excluded = std::any_of(exclude_remarks.cbegin(), exclude_remarks.cend(), [&node](const auto &x)
     {
         std::string real_rule;
-        if(applyMatcher(x, real_rule, node))
+        if (applyMatcher(x, real_rule, node))
         {
-            if(real_rule.empty()) return true;
+            if (real_rule.empty()) return true;
             return regFind(node.Remark, real_rule);
         }
-        else
-            return false;
+        return false;
     });
-    if(include_remarks.size() != 0)
+    if(!include_remarks.empty())
     {
         //writeLog(LOG_TYPE_INFO, "Comparing include remarks...");
         included = std::any_of(include_remarks.cbegin(), include_remarks.cend(), [&node](const auto &x)
@@ -263,8 +273,7 @@ bool chkIgnore(const Proxy &node, string_array &exclude_remarks, string_array &i
                 if(real_rule.empty()) return true;
                 return regFind(node.Remark, real_rule);
             }
-            else
-                return false;
+            return false;
         });
     }
     else
@@ -278,7 +287,7 @@ bool chkIgnore(const Proxy &node, string_array &exclude_remarks, string_array &i
 void filterNodes(std::vector<Proxy> &nodes, string_array &exclude_remarks, string_array &include_remarks, int groupID)
 {
     int node_index = 0;
-    std::vector<Proxy>::iterator iter = nodes.begin();
+    auto iter = nodes.begin();
     while(iter != nodes.end())
     {
         if(chkIgnore(*iter, exclude_remarks, include_remarks))

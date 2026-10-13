@@ -283,7 +283,7 @@ std::string rulesetToClashStr(YAML::Node &base_rule, std::vector<RulesetContent>
     return output_content;
 }
 
-void rulesetToSurge(INIReader &base_rule, std::vector<RulesetContent> &ruleset_content_array, int surge_ver, bool overwrite_original_rules, const std::string &remote_path_prefix)
+void rulesetToSurge(INIReader &base_rule, std::vector<RulesetContent> &ruleset_content_array, int surge_ver, bool overwrite_original_rules, const std::string &remote_path_prefix, bool use_domain_set)
 {
     string_array allRules;
     std::string rule_group, rule_path, rule_path_typed, retrieved_rules, strLine;
@@ -362,7 +362,19 @@ void rulesetToSurge(INIReader &base_rule, std::vector<RulesetContent> &ruleset_c
             {
                 if(surge_ver > 2 && !remote_path_prefix.empty())
                 {
-                    strLine = "RULE-SET," + remote_path_prefix + "/getruleset?type=1&url=" + urlSafeBase64Encode(rule_path_typed) + "," + rule_group;
+                    if(use_domain_set)
+                    {
+                        // DOMAIN-SET for domain rules + RULE-SET for non-domain rules
+                        strLine = "DOMAIN-SET," + remote_path_prefix + "/getruleset?type=5&url=" + urlSafeBase64Encode(rule_path_typed) + "," + rule_group;
+                        if(x.update_interval)
+                            strLine += ",update-interval=" + std::to_string(x.update_interval);
+                        allRules.emplace_back(strLine);
+                        strLine = "RULE-SET," + remote_path_prefix + "/getruleset?type=7&url=" + urlSafeBase64Encode(rule_path_typed) + "," + rule_group;
+                    }
+                    else
+                    {
+                        strLine = "RULE-SET," + remote_path_prefix + "/getruleset?type=1&url=" + urlSafeBase64Encode(rule_path_typed) + "," + rule_group;
+                    }
                     if(x.update_interval)
                         strLine += ",update-interval=" + std::to_string(x.update_interval);
                     allRules.emplace_back(strLine);
@@ -389,12 +401,33 @@ void rulesetToSurge(INIReader &base_rule, std::vector<RulesetContent> &ruleset_c
                     if(x.rule_type != RULESET_SURGE)
                     {
                         if(!remote_path_prefix.empty())
-                            strLine = "RULE-SET," + remote_path_prefix + "/getruleset?type=1&url=" + urlSafeBase64Encode(rule_path_typed) + "," + rule_group;
+                        {
+                            if(use_domain_set)
+                            {
+                                strLine = "DOMAIN-SET," + remote_path_prefix + "/getruleset?type=5&url=" + urlSafeBase64Encode(rule_path_typed) + "," + rule_group;
+                                allRules.emplace_back(strLine);
+                                strLine = "RULE-SET," + remote_path_prefix + "/getruleset?type=7&url=" + urlSafeBase64Encode(rule_path_typed) + "," + rule_group;
+                            }
+                            else
+                                strLine = "RULE-SET," + remote_path_prefix + "/getruleset?type=1&url=" + urlSafeBase64Encode(rule_path_typed) + "," + rule_group;
+                        }
                         else
                             continue;
                     }
                     else
-                        strLine = "RULE-SET," + rule_path + "," + rule_group;
+                    {
+                        if(use_domain_set && !remote_path_prefix.empty())
+                        {
+                            // Redirect native RULE-SET through subconverter proxy for DOMAIN-SET splitting
+                            strLine = "DOMAIN-SET," + remote_path_prefix + "/getruleset?type=5&url=" + urlSafeBase64Encode(rule_path_typed) + "," + rule_group;
+                            if(x.update_interval)
+                                strLine += ",update-interval=" + std::to_string(x.update_interval);
+                            allRules.emplace_back(strLine);
+                            strLine = "RULE-SET," + remote_path_prefix + "/getruleset?type=7&url=" + urlSafeBase64Encode(rule_path_typed) + "," + rule_group;
+                        }
+                        else
+                            strLine = "RULE-SET," + rule_path + "," + rule_group;
+                    }
 
                     if(x.update_interval)
                         strLine += ",update-interval=" + std::to_string(x.update_interval);
