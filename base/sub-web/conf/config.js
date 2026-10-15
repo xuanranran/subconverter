@@ -6,6 +6,8 @@ window.config = {
     { value: 'https://sub.miaoceo.com', text: 'subconverter', profile: 'standard' },
   ],
   shortUrl: 'https://i.miaoceo.com',
+  // 独立 Mihomo 校验服务的根地址；留空时可在面板临时填写。不要在这里保存访问令牌。
+  mihomoValidatorUrl: '',
   // 仅通过指定本地/保留 IP 范围直接访问时显示；域名访问隐藏，false 可完全关闭。
   localBackend: true,
   // Extended 的 Clash / Mihomo 可选 Aethersailor 模板；false 可关闭内置模板。
