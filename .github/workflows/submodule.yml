@@ -27,7 +27,7 @@ jobs:
         uses: szenius/set-timezone@v2.0
         with:
           timezoneLinux: "Asia/Shanghai"
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: "true"
       - name: Delete workflow runs
@@ -102,7 +102,7 @@ jobs:
         uses: szenius/set-timezone@v2.0
         with:
           timezoneLinux: "Asia/Shanghai"
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{env.GIT_TOKEN}}
@@ -142,7 +142,7 @@ jobs:
 #        uses: szenius/set-timezone@v2.0
 #        with:
 #          timezoneLinux: "Asia/Shanghai"
-#      - uses: actions/checkout@v6
+#      - uses: actions/checkout@v7
 #        with:
 #          fetch-depth: 0
 #          token: ${{env.GIT_TOKEN}}
@@ -201,7 +201,7 @@ jobs:
 #      - name: Insert Changelog
 #        run: |
 #          echo "${{steps.build_changelog.outputs.changelog}}" >> $GITHUB_WORKSPACE/CHANGELOG.md
-#      - uses: actions/checkout@v6
+#      - uses: actions/checkout@v7
 #        with:
 #          fetch-depth: 0
 #          token: ${{env.GIT_TOKEN}}
@@ -224,7 +224,7 @@ jobs:
 #        uses: szenius/set-timezone@v2.0
 #        with:
 #          timezoneLinux: "Asia/Shanghai"
-#      - uses: actions/checkout@v6
+#      - uses: actions/checkout@v7
 #        with:
 #          fetch-depth: 0
 #          token: ${{env.GIT_TOKEN}}
@@ -248,7 +248,7 @@ jobs:
 #        uses: szenius/set-timezone@v2.0
 #        with:
 #          timezoneLinux: "Asia/Shanghai"
-#      - uses: actions/checkout@v6
+#      - uses: actions/checkout@v7
 #        with:
 #          fetch-depth: 0
 #          token: ${{env.GIT_TOKEN}}
