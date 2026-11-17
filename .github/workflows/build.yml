@@ -106,7 +106,7 @@ jobs:
       - name: Build
         run: bash scripts/build.macos.release.sh
       - name: Check binary architecture
-        run: lipo -verify_arch ${{ matrix.cpu }} subconverter/subconverter
+        run: lipo subconverter/subconverter -verify_arch ${{ matrix.cpu }}
       - name: Package Release
         if: ${{ github.event_name != 'pull_request' }}
         run: tar czf ${{ matrix.artifact }}.${{ env.VERSION }}.tar.gz subconverter
