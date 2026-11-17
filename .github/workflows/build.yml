@@ -75,20 +75,25 @@ jobs:
   macos_build:
     needs: prepare
     strategy:
+      fail-fast: false
       matrix:
         include:
           - arch: x86
+            cpu: x86_64
             artifact: subconverter_darwin64
             os: macos-26-intel
           - arch: arm
+            cpu: arm64
             artifact: subconverter_darwinarm
-            os: macos-latest
+            os: macos-15
     runs-on: ${{ matrix.os }}
     env:
       GIT_TOKEN: ${{secrets.GITHUB_TOKEN}}
       VERSION: ${{ needs.prepare.outputs.ver }}
     name: macOS ${{ matrix.arch }} Build
     steps:
+      - name: Check runner architecture
+        run: test "$(uname -m)" = "${{ matrix.cpu }}"
       - name: Checkout base
         uses: actions/checkout@v7
       - name: Setup Python
@@ -100,6 +105,8 @@ jobs:
         run: sed -i -e 's/\(v[0-9]\.[0-9]\.[0-9]\)/\1-'"${{env.VERSION}}"'/' src/version.h
       - name: Build
         run: bash scripts/build.macos.release.sh
+      - name: Check binary architecture
+        run: lipo -verify_arch ${{ matrix.cpu }} subconverter/subconverter
       - name: Package Release
         if: ${{ github.event_name != 'pull_request' }}
         run: tar czf ${{ matrix.artifact }}.${{ env.VERSION }}.tar.gz subconverter
