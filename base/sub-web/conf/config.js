@@ -14,8 +14,13 @@ window.config = {
   aethersailorPresets: true,
   remoteConfigOptions: [
     {
-      value: 'https://raw.githubusercontent.com/xuanranran/Clash/main/Clash/ClashRule_B.ini',
+      value: 'https://raw.githubusercontent.com/xuanranran/Clash/main/Clash/ClashRule.ini',
       text: 'LovinYarn · Clash',
+      targets: ['clash', 'clashr'],
+    },
+    {
+      value: 'https://raw.githubusercontent.com/xuanranran/Clash/main/Clash/ClashRule_region_optional.ini',
+      text: 'LovinYarn · 自动选择',
       targets: ['clash', 'clashr'],
     },
     {
@@ -24,9 +29,22 @@ window.config = {
       targets: ['stash'],
     },
     {
-      value: 'https://raw.githubusercontent.com/xuanranran/Clash/main/Clash/ClashRule.ini',
+      value: 'https://raw.githubusercontent.com/xuanranran/Clash/main/Surge/SurgeRule.ini',
       text: 'LovinYarn · Surge',
-      targets: ['surge', 'surfboard'],
+      targets: ['surge'],
+      profiles: ['extended'],
+      surgeVersion: '5',
+    },
+    {
+      value: 'https://raw.githubusercontent.com/xuanranran/Clash/main/Clash/ClashRule.ini',
+      text: 'LovinYarn · Surge（通用转换）',
+      targets: ['surge'],
+      profiles: ['standard'],
+    },
+    {
+      value: 'https://raw.githubusercontent.com/xuanranran/Clash/main/Clash/ClashRule.ini',
+      text: 'LovinYarn · Surfboard',
+      targets: ['surfboard'],
     },
     {
       value: 'https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/config/ACL4SSR_Online.ini',
