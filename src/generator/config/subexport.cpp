@@ -89,6 +89,31 @@ static void applyEncodedHeadersMultiValue(const std::string &encoded, YAML::Node
     }
 }
 
+// Convert an encoded header map ("key=value;...") into Surge's "Header:Value" entries
+static void appendEncodedHeaders(const std::string &encoded, string_array &headers, bool skip_host, bool skip_edge)
+{
+    if(encoded.empty())
+        return;
+    for(const auto &pair : split(encoded, ";"))
+    {
+        if(pair.empty())
+            continue;
+        const auto pos = pair.find('=');
+        if(pos == std::string::npos)
+            continue;
+        const auto key = urlDecode(pair.substr(0, pos));
+        const auto value = urlDecode(pair.substr(pos + 1));
+        if(key.empty())
+            continue;
+        const auto lower_key = toLower(key);
+        if(skip_host && lower_key == "host")
+            continue;
+        if(skip_edge && lower_key == "edge")
+            continue;
+        headers.push_back(key + ":" + value);
+    }
+}
+
 std::string vmessLinkConstruct(const std::string &remarks, const std::string &add, const std::string &port, const std::string &type, const std::string &id, const std::string &aid, const std::string &net, const std::string &path, const std::string &host, const std::string &tls, const std::string &sni = "", const std::string &alpn = "", const std::string &fp = "", const std::string &skip_cert_verify = "", const std::string &udp = "", const std::string &tfo = "", const std::string &ip_version = "", const std::string &packet_encoding = "", const std::string &authenticated_length = "", const std::string &global_padding = "", const std::string &ech_enable = "", const std::string &ech_config = "", const std::string &client_fingerprint = "")
 {
     rapidjson::StringBuffer sb;
@@ -1359,7 +1384,8 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
             singleproxy["psk"] = x.Password;
             if(x.SnellVersion != 0)
                 singleproxy["version"] = x.SnellVersion;
-            if(!x.OBFS.empty())
+            // v6 replaced the simple-obfs layer with PSK-derived traffic shaping; shadow-tls/restls/jls still wrap it
+            if(!x.OBFS.empty() && !(x.SnellVersion == 6 && (x.OBFS == "http" || x.OBFS == "tls")))
             {
                 singleproxy["obfs-opts"]["mode"] = x.OBFS;
                 if(!x.Host.empty())
@@ -1405,6 +1431,13 @@ void proxyToClash(std::vector<Proxy> &nodes, YAML::Node &yamlnode, const ProxyGr
             }
             if(x.SnellVersion >= 4 && !x.Reuse.is_undef())
                 singleproxy["reuse"] = x.Reuse.get();
+            if(x.SnellVersion == 6)
+            {
+                if(!x.SnellMode.empty())
+                    singleproxy["mode"] = x.SnellMode;
+                if(!x.SnellUserKey.empty())
+                    singleproxy["userkey"] = x.SnellUserKey;
+            }
             if(!tfo.is_undef())
                 singleproxy["tfo"] = tfo.get();
             if(!x.MPTCP.is_undef())
@@ -3276,7 +3309,6 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
         string_array args, headers;
 
         std::stringstream ss;
-
         switch (x.Type)
         {
         case ProxyType::Shadowsocks:
@@ -3340,6 +3372,8 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
             proxy += ", vmess-aead=" + std::string(x.AlterId == 0 ? "true" : "false");
             if(tlssecure && !x.Fingerprint.empty())
                 proxy += ", server-cert-fingerprint-sha256=" + x.Fingerprint;
+            if(tlssecure && !x.NameCertVerify.empty())
+                proxy += ", server-cert-verify-name=" + x.NameCertVerify;
             if(tlssecure && !tls13.is_undef())
                 proxy += ", tls13=" + std::string(tls13 ? "true" : "false");
             break;
@@ -3389,6 +3423,8 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                 proxy += ", sni=" + sni;
             if(surge_ver == -3 && tlssecure && !x.Fingerprint.empty())
                 proxy += ", server-cert-fingerprint-sha256=" + x.Fingerprint;
+            if(surge_ver == -3 && tlssecure && !x.NameCertVerify.empty())
+                proxy += ", server-cert-verify-name=" + x.NameCertVerify;
             break;
         case ProxyType::HTTPS:
             if(surge_ver == -3)
@@ -3404,6 +3440,8 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                     proxy += ", sni=" + sni;
                 if(!x.Fingerprint.empty())
                     proxy += ", server-cert-fingerprint-sha256=" + x.Fingerprint;
+                if(!x.NameCertVerify.empty())
+                    proxy += ", server-cert-verify-name=" + x.NameCertVerify;
                 break;
             }
             [[fallthrough]];
@@ -3426,6 +3464,8 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                 proxy += std::string(", tls=") + (x.TLSSecure ? "true" : "false");
                 if(!scv.is_undef())
                     proxy += ", skip-cert-verify=" + scv.get_str();
+                if(tlssecure && !x.NameCertVerify.empty())
+                    proxy += ", server-cert-verify-name=" + x.NameCertVerify;
                 if(!x.AlwaysUseConnect.is_undef())
                     proxy += ", always-use-connect=" + std::string(x.AlwaysUseConnect.get() ? "true" : "false");
                 if(!x.CustomHeaders.empty())
@@ -3460,6 +3500,8 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
             }
             if(!x.Fingerprint.empty())
                 proxy += ", server-cert-fingerprint-sha256=" + x.Fingerprint;
+            if(!x.NameCertVerify.empty())
+                proxy += ", server-cert-verify-name=" + x.NameCertVerify;
             break;
         case ProxyType::Snell:
             proxy = "snell, " + hostname + ", " + port + ", psk=" + password;
@@ -3468,16 +3510,43 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                 proxy += ", udp-relay=" + udp.get_str();
                 udp = tribool();
             }
-            if(!obfs.empty())
-            {
-                proxy += ", obfs=" + obfs;
-                if(!host.empty())
-                    proxy += ", obfs-host=" + host;
-                if(obfs == "http" && !path.empty())
-                    proxy += ", obfs-uri=" + path;
-            }
             if(x.SnellVersion != 0)
                 proxy += ", version=" + std::to_string(x.SnellVersion);
+            if(x.SnellVersion >= 4 && !x.Reuse.is_undef())
+                proxy += ", reuse=" + x.Reuse.get_str();
+            if(x.SnellVersion == 6 && !x.SnellMode.empty())
+                proxy += ", mode=" + x.SnellMode;
+            if(x.UDPPort > 0 && x.UDPPort != x.Port)
+                proxy += ", udp-port=" + std::to_string(x.UDPPort);
+            if(obfs == "shadow-tls")
+            {
+                // surge takes shadow-tls as companion parameters instead of obfs=
+                if(!x.ObfsPassword.empty())
+                    proxy += ", shadow-tls-password=" + x.ObfsPassword;
+                if(x.ObfsVersion > 0)
+                    proxy += ", shadow-tls-version=" + std::to_string(x.ObfsVersion);
+                if(!host.empty())
+                    proxy += ", shadow-tls-sni=" + host;
+            }
+            else if(!obfs.empty())
+            {
+                // simple-obfs: v1-v3 accept http/tls, v4 and v5 accept http only, v6 dropped it
+                bool obfs_supported;
+                if(x.SnellVersion >= 6)
+                    obfs_supported = false;
+                else if(x.SnellVersion >= 4)
+                    obfs_supported = obfs == "http";
+                else
+                    obfs_supported = obfs == "http" || obfs == "tls";
+                if(obfs_supported)
+                {
+                    proxy += ", obfs=" + obfs;
+                    if(!host.empty())
+                        proxy += ", obfs-host=" + host;
+                    if(obfs == "http" && !path.empty())
+                        proxy += ", obfs-uri=" + path;
+                }
+            }
             break;
         case ProxyType::WireGuard:
             if(surge_ver < 4 && surge_ver != -3)
@@ -3522,6 +3591,8 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                 proxy += ",skip-cert-verify=" + std::string(scv.get() ? "true" : "false");
             if(!x.Fingerprint.empty())
                 proxy += ",server-cert-fingerprint-sha256=" + x.Fingerprint;
+            if(!x.NameCertVerify.empty())
+                proxy += ",server-cert-verify-name=" + x.NameCertVerify;
             if(!x.SNI.empty())
                 proxy += ",sni=" + x.SNI;
             else if(!x.ServerName.empty())
@@ -3562,6 +3633,8 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                 proxy += ",port-hopping-interval=" + std::to_string(x.HopInterval);
             if(!scv.is_undef())
                 proxy += ",skip-cert-verify=" + scv.get_str();
+            if(!x.NameCertVerify.empty())
+                proxy += ",server-cert-verify-name=" + x.NameCertVerify;
             break;
         case ProxyType::AnyTLS:
             if(surge_ver < 5 && surge_ver != -3)
@@ -3577,6 +3650,8 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                     proxy += ", sni=" + x.ServerName;
                 if(!x.Fingerprint.empty())
                     proxy += ", server-cert-fingerprint-sha256=" + x.Fingerprint;
+                if(!x.NameCertVerify.empty())
+                    proxy += ", server-cert-verify-name=" + x.NameCertVerify;
                 if(!x.Reuse.is_undef())
                     proxy += ", reuse=" + x.Reuse.get_str();
             }
@@ -3591,6 +3666,8 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                     proxy += ", alpn=" + (x.AlpnList.size() > 1 ? "\"" + join(x.AlpnList, ",") + "\"" : x.AlpnList.front());
                 if(!x.Fingerprint.empty())
                     proxy += ", server-cert-fingerprint-sha256=" + x.Fingerprint;
+                if(!x.NameCertVerify.empty())
+                    proxy += ", server-cert-verify-name=" + x.NameCertVerify;
                 if(!x.IPVersion.empty())
                     proxy += ", ip-version=" + x.IPVersion;
                 if(!tls13.is_undef())
@@ -3622,6 +3699,8 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                 proxy += ", alpn=" + (x.AlpnList.size() > 1 ? "\"" + join(x.AlpnList, ",") + "\"" : x.AlpnList.front());
             if(!scv.is_undef())
                 proxy += ", skip-cert-verify=" + scv.get_str();
+            if(!x.NameCertVerify.empty())
+                proxy += ", server-cert-verify-name=" + x.NameCertVerify;
             break;
         case ProxyType::TrustTunnel:
             if(surge_ver < 5 && surge_ver != -3)
@@ -3653,6 +3732,8 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                 proxy += ", congestion-controller=" + x.CongestionController;
             if(!scv.is_undef())
                 proxy += ", skip-cert-verify=" + scv.get_str();
+            if(!x.NameCertVerify.empty())
+                proxy += ", server-cert-verify-name=" + x.NameCertVerify;
             break;
         case ProxyType::SSH:
             if(surge_ver < 5 && surge_ver != -3)
@@ -3664,6 +3745,166 @@ std::string proxyToSurge(std::vector<Proxy> &nodes, const std::string &base_conf
                 proxy += ", password=" + password;
             if(!x.SSHPrivateKey.empty())
                 proxy += ", private-key=\"" + x.SSHPrivateKey + "\"";
+            break;
+        case ProxyType::VLESS:
+            // Surge VLESS requires iOS 6.0.0+ / Mac 6.12.0+; HTTPUpgrade and mKCP transports are not supported
+            if(surge_ver < 6 && surge_ver != -3)
+                continue;
+            if(!x.V2rayHttpUpgrade.is_undef() && x.V2rayHttpUpgrade.get())
+                continue;
+            proxy = "vless, " + hostname + ", " + port + ", username=" + (x.UUID.empty() ? id : x.UUID);
+            switch(hash_(transproto))
+            {
+            case "tcp"_hash:
+            case "raw"_hash:
+                break;
+            case "ws"_hash:
+                proxy += ", ws=true, ws-path=" + (path.empty() ? "/" : path);
+                if(!host.empty())
+                    headers.push_back("Host:" + host);
+                if(!edge.empty())
+                    headers.push_back("Edge:" + edge);
+                appendEncodedHeaders(x.WsHeadersMap, headers, !host.empty(), !edge.empty());
+                if(!headers.empty())
+                {
+                    std::string ws_headers = join(headers, "|");
+                    if(ws_headers.find(',') != std::string::npos)
+                        ws_headers = "\"" + ws_headers + "\"";
+                    proxy += ", ws-headers=" + ws_headers;
+                }
+                break;
+            case "grpc"_hash:
+                proxy += ", grpc=true";
+                if(!x.GrpcServiceName.empty())
+                    proxy += ", grpc-service-name=" + urlDecode(x.GrpcServiceName);
+                else if(!path.empty())
+                    proxy += ", grpc-service-name=" + urlDecode(path);
+                if(!x.GRPCMode.empty() && x.GRPCMode != "gun")
+                    proxy += ", grpc-mode=" + x.GRPCMode;
+                // grpc-authority defaults to sni, so only emit it when it differs
+                if(!host.empty() && host != x.SNI && host != x.ServerName)
+                    proxy += ", grpc-authority=" + host;
+                break;
+            case "xhttp"_hash:
+                proxy += ", xhttp=true";
+                proxy += ", xhttp-path=" + (path.empty() ? "/" : path);
+                if(!host.empty())
+                    proxy += ", xhttp-host=" + host;
+                if(!x.GRPCMode.empty())
+                    proxy += ", xhttp-mode=" + x.GRPCMode;
+                appendEncodedHeaders(x.XHTTPHeaders, headers, true, false);
+                if(!headers.empty())
+                {
+                    std::string xhttp_headers = join(headers, "|");
+                    if(xhttp_headers.find(',') != std::string::npos)
+                        xhttp_headers = "\"" + xhttp_headers + "\"";
+                    proxy += ", xhttp-headers=" + xhttp_headers;
+                }
+                if(!x.XHTTPXPaddingBytes.empty())
+                    proxy += ", xhttp-padding-bytes=" + x.XHTTPXPaddingBytes;
+                if(!x.XHTTPXPaddingObfsMode.is_undef())
+                    proxy += ", xhttp-padding-obfs=" + x.XHTTPXPaddingObfsMode.get_str();
+                if(!x.XHTTPXPaddingKey.empty())
+                    proxy += ", xhttp-padding-key=" + x.XHTTPXPaddingKey;
+                if(!x.XHTTPXPaddingHeader.empty())
+                    proxy += ", xhttp-padding-header=" + x.XHTTPXPaddingHeader;
+                if(!x.XHTTPXPaddingPlacement.empty())
+                    proxy += ", xhttp-padding-placement=" + x.XHTTPXPaddingPlacement;
+                if(!x.XHTTPXPaddingMethod.empty())
+                    proxy += ", xhttp-padding-method=" + x.XHTTPXPaddingMethod;
+                if(!x.XHTTPUplinkHTTPMethod.empty())
+                    proxy += ", xhttp-uplink-method=" + x.XHTTPUplinkHTTPMethod;
+                if(!x.XHTTPSessionPlacement.empty())
+                    proxy += ", xhttp-session-placement=" + x.XHTTPSessionPlacement;
+                if(!x.XHTTPSessionKey.empty())
+                    proxy += ", xhttp-session-key=" + x.XHTTPSessionKey;
+                if(!x.XHTTPSessionTable.empty())
+                    proxy += ", xhttp-session-table=" + x.XHTTPSessionTable;
+                if(!x.XHTTPSessionLength.empty())
+                    proxy += ", xhttp-session-length=" + x.XHTTPSessionLength;
+                if(!x.XHTTPSeqPlacement.empty())
+                    proxy += ", xhttp-seq-placement=" + x.XHTTPSeqPlacement;
+                if(!x.XHTTPSeqKey.empty())
+                    proxy += ", xhttp-seq-key=" + x.XHTTPSeqKey;
+                if(!x.XHTTPUplinkDataPlacement.empty())
+                    proxy += ", xhttp-uplink-data-placement=" + x.XHTTPUplinkDataPlacement;
+                if(!x.XHTTPUplinkDataKey.empty())
+                    proxy += ", xhttp-uplink-data-key=" + x.XHTTPUplinkDataKey;
+                if(!x.XHTTPUplinkChunkSize.empty())
+                    proxy += ", xhttp-uplink-chunk-size=" + x.XHTTPUplinkChunkSize;
+                if(!x.XHTTPNoGRPCHeader.is_undef())
+                    proxy += ", xhttp-no-grpc-header=" + x.XHTTPNoGRPCHeader.get_str();
+                if(!x.XHTTPScMaxEachPostBytes.empty())
+                    proxy += ", xhttp-max-each-post-bytes=" + x.XHTTPScMaxEachPostBytes;
+                if(!x.XHTTPScMinPostsIntervalMs.empty())
+                    proxy += ", xhttp-min-posts-interval=" + x.XHTTPScMinPostsIntervalMs;
+                if(!x.XHTTPReuseMaxConcurrency.empty())
+                    proxy += ", xhttp-xmux-max-concurrency=" + x.XHTTPReuseMaxConcurrency;
+                if(!x.XHTTPReuseMaxConnections.empty())
+                    proxy += ", xhttp-xmux-max-connections=" + x.XHTTPReuseMaxConnections;
+                if(!x.XHTTPReuseCMaxReuseTimes.empty())
+                    proxy += ", xhttp-xmux-max-reuse-times=" + x.XHTTPReuseCMaxReuseTimes;
+                if(!x.XHTTPReuseHMaxRequestTimes.empty())
+                    proxy += ", xhttp-xmux-max-request-times=" + x.XHTTPReuseHMaxRequestTimes;
+                if(!x.XHTTPReuseHMaxReusableSecs.empty())
+                    proxy += ", xhttp-xmux-max-reusable-secs=" + x.XHTTPReuseHMaxReusableSecs;
+                if(x.XHTTPReuseHKeepAlivePeriod > 0)
+                    proxy += ", xhttp-xmux-keep-alive=" + std::to_string(x.XHTTPReuseHKeepAlivePeriod);
+                break;
+            default: // http/h2/quic/mkcp and friends are not supported by Surge
+                continue;
+            }
+            if(!x.PublicKey.empty())
+            {
+                proxy += ", reality-public-key=" + x.PublicKey;
+                if(!x.ShortID.empty())
+                    proxy += ", reality-short-id=" + x.ShortID;
+            }
+            else if(tlssecure)
+                proxy += ", tls=true";
+            // Vision requires RAW with TLS/REALITY/Encryption, or WS/XHTTP with Encryption; never gRPC
+            if(!x.Flow.empty())
+            {
+                bool flow_supported;
+                switch(hash_(transproto))
+                {
+                case "grpc"_hash:
+                    flow_supported = false;
+                    break;
+                case "ws"_hash:
+                case "xhttp"_hash:
+                    flow_supported = !x.Encryption.empty() && x.Encryption != "none";
+                    break;
+                default:
+                    flow_supported = tlssecure || !x.PublicKey.empty() || (!x.Encryption.empty() && x.Encryption != "none");
+                    break;
+                }
+                if(flow_supported)
+                    proxy += ", flow=" + x.Flow;
+            }
+            if(!x.Encryption.empty() && x.Encryption != "none")
+                proxy += ", encryption=" + x.Encryption;
+            if(tlssecure || !x.PublicKey.empty())
+            {
+                std::string vless_sni = !x.SNI.empty() ? x.SNI : x.ServerName;
+                if(vless_sni.empty() && transproto != "grpc" && !host.empty())
+                    vless_sni = host;
+                if(!vless_sni.empty())
+                    proxy += ", sni=" + vless_sni;
+                std::string vless_alpn = !x.AlpnList.empty() ? (x.AlpnList.size() > 1 ? join(x.AlpnList, ",") : x.AlpnList.front()) : x.Alpn;
+                if(!vless_alpn.empty())
+                    proxy += ", alpn=" + (vless_alpn.find(',') != std::string::npos ? "\"" + vless_alpn + "\"" : vless_alpn);
+                // with REALITY the certificate is verified by the handshake, so these do not apply
+                if(tlssecure && x.PublicKey.empty())
+                {
+                    if(!scv.is_undef())
+                        proxy += ", skip-cert-verify=" + scv.get_str();
+                    if(!x.Fingerprint.empty())
+                        proxy += ", server-cert-fingerprint-sha256=" + x.Fingerprint;
+                    if(!x.NameCertVerify.empty())
+                        proxy += ", server-cert-verify-name=" + x.NameCertVerify;
+                }
+            }
             break;
         default:
             continue;
@@ -3894,7 +4135,6 @@ std::string proxyToSingle(std::vector<Proxy> &nodes, int types, extra_settings &
                     vmess_client_fp = x.ClientFingerprint;
                 else if(!fingerprint.empty())
                     vmess_client_fp = fingerprint;
-
                 proxyStr = "vmess://" + base64Encode(vmessLinkConstruct(remark, hostname, port, faketype, id, aid, transproto, path, host, tlssecure ? "tls" : "", vmess_sni, vmess_alpn, fingerprint, vmess_skip_cert_verify, vmess_udp, vmess_tfo, vmess_ip_version, vmess_packet_encoding, vmess_authlen, vmess_globalpad, vmess_ech_enable, vmess_ech_config, vmess_client_fp));
             }
             break;
@@ -5023,7 +5263,6 @@ void proxyToQuanX(std::vector<Proxy> &nodes, INIReader &ini, std::vector<Ruleset
                 if(!x.AlpnList.empty())
                     proxyStr += ", tls-alpn=" + alpnListToHex(x.AlpnList);
             }
-
             break;
         case ProxyType::ShadowsocksR:
             proxyStr = "shadowsocks = " + hostname + ":" + port + ", method=" + method + ", password=" + password + ", ssr-protocol=" + protocol;
@@ -5895,7 +6134,6 @@ std::string proxyToLoon(std::vector<Proxy> &nodes, const std::string &base_conf,
         default:
             continue;
         }
-
         const auto supports_fast_open = [](ProxyType t)
         {
             switch(t)
@@ -5915,7 +6153,6 @@ std::string proxyToLoon(std::vector<Proxy> &nodes, const std::string &base_conf,
                 return false;
             }
         };
-
         const auto supports_udp = [](ProxyType t)
         {
             switch(t)
@@ -5933,19 +6170,16 @@ std::string proxyToLoon(std::vector<Proxy> &nodes, const std::string &base_conf,
                 return false;
             }
         };
-
         tribool node_tfo = x.TCPFastOpen;
         if(node_tfo.is_undef())
             node_tfo = ext.tfo;
         if(supports_fast_open(x.Type) && !node_tfo.is_undef())
             proxy += ",fast-open=" + std::string(node_tfo.get() ? "true" : "false");
-
         tribool node_udp = x.UDP;
         if(node_udp.is_undef())
             node_udp = ext.udp;
         if(supports_udp(x.Type) && proxy.find(",udp=") == std::string::npos && !node_udp.is_undef())
             proxy += ",udp=" + std::string(node_udp.get() ? "true" : "false");
-
         if(x.Type != ProxyType::Hysteria2)
         {
             // keep this block for historical output order compatibility

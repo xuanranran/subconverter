@@ -5,23 +5,39 @@ set -euo pipefail
 # Windows (MSYS2/MinGW) static build script for subconverter
 # ============================================================================
 
-# 获取系统架构
-ARCH=$(uname -m)
-[ "$ARCH" == "x86_64" ] && TOOLCHAIN="mingw-w64-x86_64" || TOOLCHAIN="mingw-w64-i686"
+# 确定 MinGW 工具链架构：以编译器目标为准。
+# uname -m 在 MSYS2 下报告的是 MSYS 运行时架构（MINGW32 环境下仍为 x86_64），
+# 会导致 x86 任务误装 x86_64 工具链，与实际使用的编译器混用。
+if command -v gcc >/dev/null 2>&1; then
+    TARGET_TRIPLE=$(gcc -dumpmachine)
+    TARGET_ARCH=${TARGET_TRIPLE%%-*}
+elif [ "${MSYSTEM:-}" = "MINGW32" ]; then
+    TARGET_ARCH="i686"
+else
+    TARGET_ARCH=$(uname -m)
+fi
+[ "$TARGET_ARCH" = "i686" ] && TOOLCHAIN="mingw-w64-i686" || TOOLCHAIN="mingw-w64-x86_64"
 
 # 设置构建参数
 SRC_BUILD_JOBS=${SRC_BUILD_JOBS:-4}
-CMAKE_GENERATOR="Unix Makefiles"
+# 使用 Ninja：避免依赖 gmake —— PATH 上的外来 gmake（如 Strawberry Perl 自带的）在并行递归构建时会报 "invalid output sync mutex" 而中断
+CMAKE_GENERATOR="Ninja"
 CMAKE_COMMON_ARGS="-DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=$MINGW_PREFIX"
 step() { echo -e "\n==> $1\n"; }
 
 # --- 安装依赖包 ---
 step "Installing dependencies"
-pacman -S --needed --noconfirm \
-    base-devel \
-    ${TOOLCHAIN}-{toolchain,cmake,openssl,curl,zstd,pcre2,mbedtls} \
-    ${TOOLCHAIN}-{nghttp2,nghttp3,ngtcp2,libssh2,libpsl} \
+PKGS=(
+    base-devel
+    ${TOOLCHAIN}-{toolchain,cmake,openssl,curl,zstd,pcre2,ninja}
+    ${TOOLCHAIN}-{nghttp2,nghttp3,ngtcp2,libssh2,libpsl}
     ${TOOLCHAIN}-{libidn2,libunistring,libiconv,brotli,zlib}
+)
+# mbedtls 仅存在于 x86_64 仓库，mingw32 (i686) 仓库没有该包，可用时才安装
+if pacman -Si "${TOOLCHAIN}-mbedtls" >/dev/null 2>&1; then
+    PKGS+=("${TOOLCHAIN}-mbedtls")
+fi
+pacman -S --needed --noconfirm "${PKGS[@]}"
 
 # --- 从源码构建静态库的辅助函数 ---
 # 用法: build_static_cmake <repo> <dir> [extra_args] [cmake_subdir] [build_target]

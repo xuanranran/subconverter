@@ -346,6 +346,8 @@ struct Proxy
 
     // Snell-specific
     uint16_t SnellVersion = 0;
+    String SnellMode; // v6 only: default / unshaped / unsafe-raw
+    String SnellUserKey; // v6 only, sent as the Snell ClientID (mihomo: userkey)
     String ObfsPassword;
     uint16_t ObfsVersion = 0;
     StringArray ObfsAlpn;

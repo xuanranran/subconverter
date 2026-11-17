@@ -318,7 +318,7 @@ std::string subconverter(RESPONSE_CALLBACK_ARGS)
 
     std::string argTarget = getUrlArg(argument, "target"), argSurgeVer = getUrlArg(argument, "ver");
     tribool argClashNewField = getUrlArg(argument, "new_name");
-    int intSurgeVer = !argSurgeVer.empty() ? to_int(argSurgeVer, 5) : 5;
+    int intSurgeVer = !argSurgeVer.empty() ? to_int(argSurgeVer, 6) : 6;
     if(argTarget == "auto")
         matchUserAgent(request.headers["User-Agent"], argTarget, argClashNewField, intSurgeVer);
 
