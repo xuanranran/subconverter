@@ -70,6 +70,9 @@ def main():
     assert node["tls"]["enabled"] is True and node["tls"]["server_name"] == "tls.example.com", node
     assert node["transport"]["type"] == "ws" and node["transport"]["path"] == "/test?key=value", node
     assert node["transport"]["headers"]["Host"] == "ws.example.com", node
+    fallback = json.loads(convert(args.endpoint, "singbox", link.replace("&sni=tls.example.com", "")))
+    fallback_node = next(node for node in fallback["outbounds"] if node.get("type") == "vless")
+    assert fallback_node["tls"]["server_name"] == "ws.example.com", fallback_node
     surge = convert(args.endpoint, "surge", link)
     assert "smoke-vless-ws" in surge and "vless," in surge and "ws-path=/test?key=value" in surge, surge
     assert "Host:ws.example.com" in surge and "sni=tls.example.com" in surge, surge

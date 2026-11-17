@@ -6635,7 +6635,9 @@ void proxyToSingBox(std::vector<Proxy> &nodes, rapidjson::Document &json, std::v
                 {
                     rapidjson::Value tls(rapidjson::kObjectType);
                     tls.AddMember("enabled", true, allocator);
-                    if(!x.ServerName.empty())
+                    if(!x.SNI.empty())
+                        tls.AddMember("server_name", rapidjson::StringRef(x.SNI.c_str()), allocator);
+                    else if(!x.ServerName.empty())
                         tls.AddMember("server_name", rapidjson::StringRef(x.ServerName.c_str()), allocator);
                     else if(!x.Host.empty())
                         tls.AddMember("server_name", rapidjson::StringRef(x.Host.c_str()), allocator);
@@ -6703,12 +6705,12 @@ void proxyToSingBox(std::vector<Proxy> &nodes, rapidjson::Document &json, std::v
         {
             rapidjson::Value tls(rapidjson::kObjectType);
             tls.AddMember("enabled", true, allocator);
-            if (!x.ServerName.empty())
+            if (!x.SNI.empty())
+                tls.AddMember("server_name", rapidjson::StringRef(x.SNI.c_str()), allocator);
+            else if (!x.ServerName.empty())
                 tls.AddMember("server_name", rapidjson::StringRef(x.ServerName.c_str()), allocator);
             else if (!x.Host.empty())
                 tls.AddMember("server_name", rapidjson::StringRef(x.Host.c_str()), allocator);
-            else if (!x.SNI.empty())
-                tls.AddMember("server_name", rapidjson::StringRef(x.SNI.c_str()), allocator);
             tls.AddMember("insecure", buildBooleanValue(scv), allocator);
             if (!x.AlpnList.empty())
             {
